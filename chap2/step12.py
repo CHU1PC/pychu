@@ -15,7 +15,6 @@ class Variable:
         self.creator = func
 
     def backward(self):
-        # 最初はcreatorが一個しか入っていない(self)の文だけ
         funcs = [self.creator]
         while funcs:
             f = funcs.pop()
@@ -28,19 +27,27 @@ class Variable:
 
 
 class Function:
-    def __call__(self, inputs):
+    # inputs -> *inputsにすることで可変長引数にできる
+    def __call__(self, *inputs):
         xs = [x.data for x in inputs]
-        ys = self.forward(xs)
+
+        # self.forward(xs) -> self.forward(*xs)
+        # こうすることで展開して渡してくれる
+        ys = self.forward(*xs)
+
+        # tupleじゃないときにtupleにする
+        if not isinstance(ys, tuple):
+            ys = (ys, )
+
         outputs = [Variable(y) for y in ys]
 
         for output in outputs:
             output.set_creator(self)
         self.inputs = inputs
         self.outputs = outputs
-        return outputs
+        return outputs if len(outputs) > 1 else outputs[0]
 
-    def forward(self, x):
-        # 継承されたクラスでオーバライドされる想定
+    def forward(self, *xs):
         raise NotImplementedError()
 
     def backward(self, gy):
@@ -70,10 +77,13 @@ class Function:
 
 
 class Add(Function):
-    def forward(self, xs):
-        x0, x1 = xs
+    # forward(self, xs) -> forward(self, x0, x1)
+    # これはFunctionのforward関数で仮引数を
+    # forward(self, xs) -> forward(self, *xs)
+    # に変えたことで実現できている
+    def forward(self, x0, x1):
         y = x0 + x1
-        return (y, )
+        return y
 
 
 # def square(x):
@@ -86,9 +96,14 @@ class Add(Function):
 #     return f(x)
 
 
-if __name__ == "__main__":
-    xs = [Variable(np.array(2)), Variable(np.array(3))]
+def add(x0, x1):
     f = Add()
-    ys = f(xs)
-    y = ys[0]
+    return f(x0, x1)
+
+
+if __name__ == "__main__":
+    x0, x1 = Variable(np.array(2)), Variable(np.array(3))
+    # f = Add()がなくなった
+    # y = ys[0]がなくなった
+    y = add(x0, x1)
     print(y.data)
