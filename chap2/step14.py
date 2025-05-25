@@ -22,16 +22,12 @@ class Variable:
         while funcs:
             f = funcs.pop()
             if f is not None:
-                # x, y = f.input, f.output
-                # x.grad = f.backward(y.grad)
 
-                # gxsに微分したものが入っている
                 gys = [output.grad for output in f.outputs]
                 gxs = f.backward(*gys)
                 if not isinstance(gxs, tuple):
                     gxs = (gxs, )
 
-                # x.gradにgxs内にある微分したtupleを格納していく
                 for x, gx in zip(f.inputs, gxs):
                     # x.grad = gx -> x.grad += gx
                     # すでに一度格納されていた場合それに付け足す
@@ -42,6 +38,11 @@ class Variable:
 
                     if x.creator is not None:
                         funcs.append(x.creator)
+
+    # x.grad += gxとしたことで新たな計算をすると足されて行ってしまうため
+    # リセットするためにcleargrad
+    def cleargrad(self):
+        self.grad = None
 
 
 class Function:
@@ -74,8 +75,6 @@ class Square(Function):
         return np.array(y)
 
     def backward(self, gy):
-        # x = self.inputs.data -> x = self.inputs[0].data
-        # tupleのためそれの第一要素だけを取り出す
         x = self.inputs[0].data
         gx = 2 * x * gy
         return gx
@@ -87,8 +86,6 @@ class Exp(Function):
         return y
 
     def backward(self, gy):
-        # x = self.inputs.data -> x = self.inputs[0].data
-        # tupleのためそれの第一要素だけを取り出す
         x = self.inputs[0].data
         gx = np.exp(x) * gy
         return gx
@@ -120,6 +117,11 @@ def add(x0, x1):
 
 if __name__ == "__main__":
     x0, x1 = Variable(np.array(2.0)), Variable(np.array(3.0))
+    y = add(x0, x0)
+    y.backward()
+    print(x0.grad)
+
+    x0.cleargrad()
     y = add(x0, x0)
     y.backward()
     print(x0.grad)
