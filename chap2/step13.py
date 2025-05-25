@@ -82,6 +82,8 @@ class Exp(Function):
         return y
 
     def backward(self, gy):
+        # x = self.inputs.data -> x = self.inputs[0].data
+        # tupleのためそれの第一要素だけを取り出す
         x = self.inputs[0].data
         gx = np.exp(x) * gy
         return gx
