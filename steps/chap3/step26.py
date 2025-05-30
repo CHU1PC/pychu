@@ -1,6 +1,7 @@
 import sys
 
-sys.path.append(r"D:\program\programming\study\ゼロから作るdeeplearning\ゼロから作る3\from_zero_3_github")
+sys.path.append(r"D:\program\programming\study\ゼロから作るdeeplearning"
+                r"\ゼロから作る3\from_zero_3_github")
 
 import numpy as np  # noqa
 from pychu import Variable  # noqa
