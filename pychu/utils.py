@@ -39,9 +39,13 @@ def get_dot_graph(output, verbose=True):
             funcs.append(f)
             # funcs.sort(key=lambda x: x.generation)
             seen_set.add(f)
+
     add_func(output.creator)
+    # 一番最後のoutputに対して_dot_varでtxtに追加
     txt += _dot_var(output, verbose)
 
+    # 一番最後のfuncsからinputsを使ってひとつ前の変数を取得&txtに追加
+    # これを最後の変数まで繰り返す
     while funcs:
         func = funcs.pop()
         txt += _dot_func(func)
