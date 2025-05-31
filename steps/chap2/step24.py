@@ -2,8 +2,9 @@ import sys
 
 import numpy as np
 
-sys.path.append(r"D:\program\programming\study\ゼロから作るdeeplearning\ゼロから作る3\from_zero_3_github")
-from pychu import Variable
+sys.path.append(r"D:\program\programming\study\ゼロから作るdeeplearning"
+                r"\ゼロから作る3\from_zero_3_github")
+from pychu import Variable  # noqa
 
 
 def sphere(x, y):
