@@ -11,6 +11,13 @@ class Config:
     enable_backprop = True
 
 
+# 関数をwith文で使えるようにするもの
+# yieldの前
+# try:
+#    (     )   <- ここだwith文内の処理
+#    yield
+#    (     )   <- ここがwith文が終わった後の処理
+
 @contextlib.contextmanager
 def using_config(name, value):
     old_value = getattr(Config, name)
