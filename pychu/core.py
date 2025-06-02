@@ -53,9 +53,16 @@ class Variable:
 
         self.generation = func.generation + 1
 
-    def backward(self, retain_grad=False):
+    def backward(self, retain_grad=False, create_graph=False):
+        """
+        retain_grad: 途中の微分を覚えておくかどうか、デフォルトでは覚えない(False)
+        create_graph: 2階微分以上を行うか行わないか、デフォルトでは行わない(False)
+        """
         if self.grad is None:
-            self.grad = np.ones_like(self.data)
+            # self.grad = np.ones_like(self.data)
+            # こうすることで今までndarrayで作られていたものではなくつながりを持った計算になる
+            # つながりがあればそれに対してもまたそいつが何によって作られたのかなどがわかる
+            self.grad = Variable(np.ones_like(self.data))
 
         funcs = []
         seen_set = set()
@@ -70,8 +77,11 @@ class Variable:
 
         while funcs:
             f = funcs.pop()
-            if f is not None:
-                gys = [output().grad for output in f.outputs]
+            gys = [output().grad for output in f.outputs]
+
+            # gxsを作る前にusing_configを使うことでFunction内の
+            # Config.back_propが変化しつながりを作るか作らないかを決めれる
+            with using_config("enable_backprop", create_graph):
                 gxs = f.backward(*gys)
                 if not isinstance(gxs, tuple):
                     gxs = (gxs, )
@@ -201,6 +211,7 @@ class Function:
 
         outputs = [Variable(y) for y in ys]
 
+        # Configクラスのenable_backpropを呼び出しているだけ
         if Config.enable_backprop:
             self.generation = max([x.generation for x in inputs])
             for output in outputs:
@@ -251,7 +262,7 @@ class Mul(Function):
         return y
 
     def backward(self, gy):
-        x0, x1 = self.inputs[0].data, self.inputs[1].data
+        x0, x1 = self.inputs
         return gy * x1, gy * x0
 
 
@@ -260,7 +271,7 @@ class Div(Function):
         return x0 / x1
 
     def backward(self, gy):
-        x0, x1 = self.inputs[0].data, self.inputs[1].data
+        x0, x1 = self.inputs
         return gy * (1 / x1), gy * (-x0 / x1 ** 2)
 
 
@@ -270,7 +281,7 @@ class Square(Function):
         return np.array(y)
 
     def backward(self, gy):
-        x = self.inputs[0].data
+        x = self.inputs[0]
         gx = 2 * x * gy
         return gx
 
@@ -283,7 +294,7 @@ class Pow(Function):
         return x0 ** self.c
 
     def backward(self, gy):
-        x0 = self.inputs[0].data
+        x0 = self.inputs[0]
         return gy * (self.c * x0 ** (self.c - 1))
 
 
@@ -292,7 +303,7 @@ class FloorDiv(Function):
         return x0 // x1
 
     def backward(self, gy):
-        x0, x1 = self.inputs[0].data, self.inputs[1].data
+        x0, x1 = self.inputs
         return gy * (1 // x1), gy * (-x0 // x1 ** 2)
 
 
@@ -301,7 +312,7 @@ class Mod(Function):
         return x0 % x1
 
     def backward(self, gy):
-        x0, x1 = self.inputs[0].data, self.inputs[1].data
+        x0, x1 = self.inputs
         q = x0 // x1
         return gy * 1, gy * (-q)
 
@@ -312,7 +323,7 @@ class Exp(Function):
         return y
 
     def backward(self, gy):
-        x = self.inputs[0].data
+        x = self.inputs[0]
         gx = np.exp(x) * gy
         return gx
 
