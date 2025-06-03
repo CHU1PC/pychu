@@ -152,6 +152,7 @@ class Variable:
         return len(self.data)
 
     def __repr__(self):
+        """これはprint(x)などでVariableが呼ばれたときになんと返すかを決めれる処理"""
         if self.data is None:
             return "variable(None)"
         p = str(self.data).replace("\n", "\n" + " " * 9)
@@ -159,69 +160,6 @@ class Variable:
 
     def __neg__(self):
         return neg(self)
-
-    def __add__(self, other):
-        return add(self, other)
-
-    def __radd__(self, other):
-        return add(other, self)
-
-    def __iadd__(self, other):
-        self.data = (self + other).data
-        return self
-
-    def __sub__(self, other):
-        return sub(self, other)
-
-    def __rsub__(self, other):
-        return sub(other, self)
-
-    def __isub__(self, other):
-        self.data = (self - other).data
-        return self
-
-    def __mul__(self, other):
-        return mul(self, other)
-
-    def __rmul__(self, other):
-        return mul(other, self)
-
-    def __imul__(self, other):
-        self.data = (self * other).data
-        return self
-
-    def __truediv__(self, other):
-        return div(self, other)
-
-    def __rtruediv__(self, other):
-        return div(other, self)
-
-    def __itruediv__(self, other):
-        self.data = (self / other).data
-        return self
-
-    def __floordiv__(self, other):
-        return floordiv(self, other)
-
-    def __rfloordiv__(self, other):
-        return floordiv(other, self)
-
-    def __pow__(self, other):
-        return pow(self, other)
-
-    def __ipow__(self, other):
-        self.data = (self ** other).data
-        return self
-
-    def __mod__(self, other):
-        return mod(self, other)
-
-    def __rmod__(self, other):
-        return mod(other, self)
-
-    def __imod__(self, other):
-        self.data = (self % other).data
-        return self
 
     def sum(self, axis=None, keepdims=False):
         import pychu.functions as F
@@ -265,6 +203,57 @@ class Function:
 # =============================================================================
 # 演算子クラスと関数
 # =============================================================================
+
+def _setup_variable_operators():
+    ops = [
+        ('__add__', 'add'),
+        ('__radd__', 'add'),
+        ('__sub__', 'sub'),
+        ('__rsub__', 'sub'),
+        ('__mul__', 'mul'),
+        ('__rmul__', 'mul'),
+        ('__truediv__', 'div'),
+        ('__rtruediv__', 'div'),
+        ('__floordiv__', 'floordiv'),
+        ('__rfloordiv__', 'floordiv'),
+        ('__pow__', 'pow'),
+        ('__mod__', 'mod'),
+        ('__rmod__', 'mod'),
+    ]
+
+    for method, func in ops:
+        if method.startswith('__r'):
+            # setattrはVariableにmethod(__add__や__sub__, __mul__など)という名前で
+            setattr(Variable, method,
+                    lambda self, other, f=func: globals()[f](other, self))
+        else:
+
+            setattr(Variable, method,
+                    lambda self, other, f=func: globals()[f](self, other))
+
+    # インプレース演算子
+    iops = [
+        ('__iadd__', '__add__'),
+        ('__isub__', '__sub__'),
+        ('__imul__', '__mul__'),
+        ('__itruediv__', '__truediv__'),
+        ('__ifloordiv__', '__floordiv__'),
+        ('__ipow__', '__pow__'),
+        ('__imod__', '__mod__'),
+    ]
+
+    def _inplace_op(self, other, method):
+        result = getattr(self, method)(other)
+        self.data = result.data
+        return self
+
+    Variable._inplace_op = _inplace_op  # type: ignore
+
+    for imethod, method in iops:
+        setattr(Variable, imethod,
+                lambda self, other, m=method: self._inplace_op(other, m))
+
+
 class Neg(Function):
     def forward(self, x):
         return -x
@@ -307,17 +296,6 @@ class Div(Function):
     def backward(self, gy):
         x0, x1 = self.inputs
         return gy * (1 / x1), gy * (-x0 / x1 ** 2)
-
-
-class Square(Function):
-    def forward(self, x):
-        y = x**2
-        return np.array(y)
-
-    def backward(self, gy):
-        x = self.inputs[0]
-        gx = 2 * x * gy
-        return as_variable(gx)
 
 
 class Pow(Function):
@@ -374,10 +352,6 @@ def div(x0, x1):
 
 def floordiv(x0, x1):
     return FloorDiv()(x0, x1)
-
-
-def square(x):
-    return Square()(x)
 
 
 def pow(x, c):

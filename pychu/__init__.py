@@ -7,4 +7,6 @@ if is_simple_core:
 else:
     from pychu.core import using_config  # noqa
     from pychu.core import (Function, Variable,  # type: ignore  # noqa
-                            as_variable, no_grad)
+                            _setup_variable_operators, as_variable, no_grad)
+
+_setup_variable_operators()
