@@ -26,6 +26,61 @@ def reshape(x, shape):
     return Reshape(shape)(x)
 
 
+# broadcastto関数
+class BroadcastTo(Function):
+    def __init__(self, shape):
+        self.shape = shape
+
+    def forward(self, x):
+        self.x_shape = x.shape
+        return np.broadcast_to(x, self.shape)
+
+    def backward(self, gy):
+        # broadcastはデータの数を拡張しているため単純に勾配の値が増やした軸への和になる
+        return sum_to(gy, self.x_shape)
+
+
+def broadcast_to(x, shape):
+    """xをしたいshapeに拡張する
+
+    Args:
+        x (ndarray): 変換したいndarray入力
+        shape (tuple, list): 変換したい形(行列)
+
+    Returns:
+        ndarray: 変換した後のndarrayを返す
+    """
+    if x.shape == shape:
+        return as_variable(x)
+    return BroadcastTo(shape)(x)
+
+
+# sumto関数
+class SumTo(Function):
+    def __init__(self, shape):
+        self.shape = shape
+
+    def forward(self, x):
+        self.x_shape = x.shape
+        import pychu.utils as utils
+        return utils.sum_to(x, self.shape)
+
+
+def sum_to(x, shape):
+    """xを指定したshapeになるように和をとって変形させる
+
+    Args:
+        x(ndarray): ndarrayの入力
+        shape(tuple, list): 変換したい形(行列)
+
+    Returns:
+        ndarray: 変換したあとのndarrayを返す
+    """
+    if x.shape == shape:
+        return as_variable(x)
+    return SumTo(shape)(x)
+
+
 # transpose関数
 class Transpose(Function):
     def forward(self, x):
@@ -38,6 +93,25 @@ class Transpose(Function):
 
 def transpose(x):
     return Transpose()(x)
+
+
+# sum関数
+class Sum(Function):
+    def __init__(self, axis, keepdims):
+        self.axis = axis
+        self.keepdims = keepdims
+
+    def forward(self, x):
+        self.x_shape = x.shape
+        return np.sum(x, axis=self.axis, keepdims=self.keepdims)
+
+    def backward(self, gy):
+        gx = broadcast_to(gy, self.x_shape)
+        return gx
+
+
+def sum(x, axis=None, keepdims=False):
+    return Sum(axis, keepdims)(x)
 
 
 # sin関数

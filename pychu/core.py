@@ -223,6 +223,10 @@ class Variable:
         self.data = (self % other).data
         return self
 
+    def sum(self, axis=None, keepdims=False):
+        import pychu.functions as F
+        return F.sum(self, axis, keepdims)
+
 
 class Function:
     # 変数と関数のつながりが作られる
