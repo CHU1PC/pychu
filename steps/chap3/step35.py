@@ -21,6 +21,7 @@ for i in range(iters):
 
 gx = x.grad
 gx.name = "gx" + str(iters+1)
-plot_dot_graph(gx, verbose=False, to_file=r"D:\program\programming\study"
-               r"\ゼロから作るdeeplearning\ゼロから作る3\from_zero_3_github\steps\chap3"
+plot_dot_graph(gx, verbose=False,
+               sto_file=r"D:\program\programming\study\ゼロから作るdeeplearning"
+               r"\ゼロから作る3\from_zero_3_github\steps\chap3"
                r"\tanh.png")
