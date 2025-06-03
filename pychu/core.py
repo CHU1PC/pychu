@@ -41,6 +41,12 @@ def as_variable(obj):
     return Variable(obj)
 
 
+def as_array(x, array_module=np):
+    if np.isscalar(x):
+        return array_module.array(x)
+    return x
+
+
 class Variable:
     __array_priority__ = 1
 
@@ -97,7 +103,9 @@ class Variable:
                     if x.grad is None:
                         x.grad = gx
                     else:
-                        x.grad += gx
+                        # これがx.grad += gxだとx.gradが上書きされるため
+                        # つながりがなくなってしまう
+                        x.grad = x.grad + gx
 
                     if x.creator is not None:
                         add_func(x.creator)
@@ -144,7 +152,7 @@ class Variable:
         return add(other, self)
 
     def __iadd__(self, other):
-        self.data = (self+other).data
+        self.data = (self + other).data
         return self
 
     def __sub__(self, other):
@@ -155,7 +163,7 @@ class Variable:
 
     def __isub__(self, other):
         self.data = (self - other).data
-        return self.data
+        return self
 
     def __mul__(self, other):
         return mul(self, other)
@@ -175,7 +183,7 @@ class Variable:
 
     def __itruediv__(self, other):
         self.data = (self / other).data
-        return self.data
+        return self
 
     def __floordiv__(self, other):
         return floordiv(self, other)
@@ -290,7 +298,7 @@ class Square(Function):
     def backward(self, gy):
         x = self.inputs[0]
         gx = 2 * x * gy
-        return gx
+        return as_variable(gx)
 
 
 class Pow(Function):
@@ -324,62 +332,38 @@ class Mod(Function):
         return gy * 1, gy * (-q)
 
 
-class Exp(Function):
-    def forward(self, x):
-        y = np.exp(x)
-        return y
-
-    def backward(self, gy):
-        x = self.inputs[0]
-        gx = np.exp(x) * gy
-        return gx
-
-
 def neg(x):
-    f = Neg()
-    return f(x)
+    return Neg()(x)
 
 
 def add(x0, x1):
-    f = Add()
-    return f(x0, x1)
+    return Add()(x0, x1)
 
 
 def sub(x0, x1):
-    f = Sub()
-    return f(x0, x1)
+    return Sub()(x0, x1)
 
 
 def mul(x0, x1):
-    f = Mul()
-    return f(x0, x1)
+
+    return Mul()(x0, x1)
 
 
 def div(x0, x1):
-    f = Div()
-    return f(x0, x1)
+    return Div()(x0, x1)
 
 
 def floordiv(x0, x1):
-    f = FloorDiv()
-    return f(x0, x1)
+    return FloorDiv()(x0, x1)
 
 
 def square(x):
-    f = Square()
-    return f(x)
+    return Square()(x)
 
 
 def pow(x, c):
-    f = Pow(c)
-    return f(x)
+    return Pow(c)(x)
 
 
 def mod(x, c):
-    f = Mod()
-    return f(x, c)
-
-
-def exp(x):
-    f = Exp()
-    return f(x)
+    return Mod()(x, c)
