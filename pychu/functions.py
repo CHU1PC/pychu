@@ -53,7 +53,7 @@ def broadcast_to(x, shape):
         shape (tuple, list): 変換したい形(行列)
 
     Returns:
-        ndarray: 変換した後のndarrayを返す
+        Variable: 変換した後のVariableを返す
     """
     if x.shape == shape:
         return as_variable(x)
@@ -79,11 +79,36 @@ def sum_to(x, shape):
         shape(tuple, list): 変換したい形(行列)
 
     Returns:
-        ndarray: 変換したあとのndarrayを返す
+        Variable: 変換したあとのVariableを返す
     """
     if x.shape == shape:
         return as_variable(x)
     return SumTo(shape)(x)
+
+
+# matmul関数
+class MatMul(Function):
+    def forward(self, x, W):
+        return np.matmul(x, W)
+
+    def backward(self, gy):
+        x, W = self.inputs
+        gx = matmul(gy, W.T)
+        gW = matmul(x.T, gy)
+        return gx, gW
+
+
+def matmul(x, W):
+    """行列積を計算するもの
+
+    Args:
+        x (ndarray): テンソル
+        W (nadarray): x・WのW
+
+    Returns:
+        Variable : 行列積をした後の行列を返す
+    """
+    return MatMul()(x, W)
 
 
 # transpose関数
