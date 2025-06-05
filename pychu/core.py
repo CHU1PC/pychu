@@ -53,6 +53,7 @@ def as_array(x, array_module=np):
 
 
 class Variable:
+    # これはnpなどのほかの変数と__array_priority__(標準では0.0)を比較して大きいほうの演算子を使う
     __array_priority__ = 1
 
     def __init__(self, data, name=None):
