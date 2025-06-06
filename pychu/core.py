@@ -41,15 +41,17 @@ def no_grad():
 # Variable / Function
 # =============================================================================
 def as_variable(obj):
+    """Variableでないときに変換して返す
+
+    Args:
+        obj (Any): 入力
+
+    Returns:
+        Variable: Variableに返してから返す
+    """
     if isinstance(obj, Variable):
         return obj
     return Variable(obj)
-
-
-def as_array(x, array_module=np):
-    if np.isscalar(x):
-        return array_module.array(x)
-    return x
 
 
 class Variable:
@@ -229,7 +231,7 @@ def _setup_variable_operators():
 
     for method, func in ops:
         if method.startswith('__r'):
-            # setattrはVariableにmethod(__add__や__sub__, __mul__など)という名前で
+            # setattrはVariableにmethod(__add__や__sub__, __mul__など)という名前で宣言できる
             setattr(Variable, method,
                     lambda self, other, f=func: globals()[f](other, self))
         else:
@@ -348,7 +350,6 @@ def sub(x0, x1):
 
 
 def mul(x0, x1):
-
     return Mul()(x0, x1)
 
 
