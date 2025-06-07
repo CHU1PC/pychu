@@ -54,6 +54,12 @@ def as_variable(obj):
     return Variable(obj)
 
 
+def as_array(x, array_module=np):
+    if np.isscalar(x):
+        return array_module.array(x)
+    return x
+
+
 class Variable:
     # これはnpなどのほかの変数と__array_priority__(標準では0.0)を比較して大きいほうの演算子を使う
     __array_priority__ = 1
@@ -189,7 +195,7 @@ class Function:
         if not isinstance(ys, tuple):
             ys = (ys, )
 
-        outputs = [Variable(y) for y in ys]
+        outputs = [Variable(as_array(y)) for y in ys]
 
         # Configクラスのenable_backpropを呼び出しているだけ
         if Config.enable_backprop:
