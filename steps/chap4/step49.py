@@ -28,6 +28,7 @@ for epoch in range(max_epoch):
     sum_loss = 0
 
     for i in range(max_iter):
+        # indexがどんどん増えていきbatchの場所が変わっていく
         batch_index = index[i * batch_size:(i + 1) * batch_size]
         batch = [train_set[i] for i in batch_index]
         batch_x = np.array([example[0] for example in batch])

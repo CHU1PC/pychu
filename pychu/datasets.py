@@ -22,6 +22,7 @@ class Dataset:
 
         self.data = None
         self.label = None
+        # prepareを子クラスで作りそれを宣言時に呼び出す
         self.prepare()
 
     def __getitem__(self, index):
