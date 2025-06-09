@@ -208,9 +208,11 @@ class Function:
         return outputs if len(outputs) > 1 else outputs[0]
 
     def forward(self, *xs):
+        # 子クラスでオーバライドされる
         raise NotImplementedError()
 
     def backward(self, gy):
+        # 子クラスでオーバライドされる
         raise NotImplementedError()
 
 
@@ -398,3 +400,9 @@ def pow(x, c):
 
 def mod(x, c):
     return Mod()(x, c)
+
+
+###############################################################################
+
+class Parameter(Variable):
+    pass
