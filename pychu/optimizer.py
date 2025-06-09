@@ -38,6 +38,10 @@ class SGD(Optimizer):
         self.lr = lr
 
     def update_one(self, param):
+        """
+        W = W - lr * aL/aW
+        勾配降下法の基本的な更新式
+        """
         param.data -= self.lr * param.grad.data
 
 
@@ -50,10 +54,10 @@ class MomentumSGD(Optimizer):
         self.vs = {}
 
     def update_one(self, param):
-        """paramの更新を行う
-
-        Args:
-            param (Parameter): 更新対象のパラメータ
+        """
+        W = W + v
+        v = momentum * v - lr * aL/aW
+        vは過去の勾配の移動平均
         """
         # idはアドレス(メモリ内での)を出力する
         v_key = id(param)
@@ -68,6 +72,10 @@ class MomentumSGD(Optimizer):
 
 # AdaGrad関数
 class AdaGrad(Optimizer):
+    """
+    W = W - lr * aL/aW / sqrt(h + eps)
+    hは過去の勾配の二乗和
+    """
     def __init__(self, lr=0.001, eps=1e-8):
         super().__init__()
         self.lr = lr
@@ -90,6 +98,10 @@ class AdaGrad(Optimizer):
 
 # Adam関数
 class Adam(Optimizer):
+    """
+    W = W - lr * m / (sqrt(v) + eps)
+    mは過去の勾配の移動平均
+    """
     def __init__(self, alpha=0.001, beta1=0.9, beta2=0.999, eps=1e-8):
         super().__init__()
         self.t = 0
