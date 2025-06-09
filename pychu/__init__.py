@@ -6,7 +6,10 @@ if is_simple_core:
                                    no_grad)
 else:
     from pychu.core import using_config  # noqa
-    from pychu.core import (Function, Variable,  # type: ignore  # noqa
-                            _setup_variable_operators, as_variable, no_grad)
+    from pychu.core import (Function, Parameter,  # type: ignore  # noqa
+                            Variable, _setup_variable_operators, as_variable,
+                            no_grad)
+    from pychu.layers import Layer  # noqa
+    from pychu.models import Model  # noqa
 
 _setup_variable_operators()
