@@ -8,7 +8,7 @@ sys.path.append(r"D:\program\programming\study\ゼロから作るdeeplearning"
 
 import pychu
 import pychu.functions as F
-from pychu import optimizer
+from pychu import optimizers
 from pychu.models import MLP
 
 max_epoch = 300
