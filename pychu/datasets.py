@@ -1,5 +1,9 @@
 import numpy as np
 
+"""
+データセットを作ったりするためのファイル
+"""
+
 
 class Dataset:
     def __init__(self, train=True, transform=None, target_transform=None):
