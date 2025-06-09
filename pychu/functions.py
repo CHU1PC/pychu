@@ -5,7 +5,7 @@ import numpy as np
 sys.path.append(r"D:\program\programming\study\ゼロから作るdeeplearning"
                 r"\ゼロから作る3\from_zero_3_github")
 import pychu.utils as utils  # noqa
-from pychu.core import Function, as_variable  # noqa
+from pychu.core import Function, Variable, as_array, as_variable  # noqa
 
 """
 このファイルではcore.pyで作られvariableにもっと機能を増やしていくための
@@ -321,3 +321,17 @@ class SoftmaxCrossEntropy(Function):
 
 def softmax_cross_entropy(x, t):
     return SoftmaxCrossEntropy()(x, t)
+
+
+###############################################################################
+# accuracy/
+###############################################################################
+
+
+def accuracy(y, t):
+    y, t = as_variable(y), as_variable(t)
+
+    pred = y.data.argmax(axis=1).reshape(t.shape)
+    result = (pred == t.data)
+    acc = result.mean()
+    return Variable(as_array(acc))
