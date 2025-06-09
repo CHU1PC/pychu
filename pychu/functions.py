@@ -121,6 +121,26 @@ def matmul(x, W):
     return MatMul()(x, W)
 
 
+# Linear関数
+class Linear(Function):
+    def forward(self, x, W, b):
+        y = x.dot(W)
+        if b is not None:
+            y = y + b
+        return y
+
+    def backward(self, gy):
+        x, W, b = self.inputs
+        gb = None if b.data is None else sum_to(gy, b.shape)
+        gx = matmul(gy, W.T)
+        gW = matmul(x.T, gy)
+        return gx, gW, gb
+
+
+def linear(x, W, b=None):
+    return Linear()(x, W, b)
+
+
 # transpose関数
 class Transpose(Function):
     def forward(self, x):
@@ -251,28 +271,3 @@ class MeanSquaredError(Function):
 
 def mean_squared_error(x0, x1):
     return MeanSquaredError()(x0, x1)
-
-
-###############################################################################
-# ネットワーク構成用関数(network structure function)
-###############################################################################
-
-
-# 全結合層(Linear層)
-class Linear(Function):
-    def forward(self, x, W, b):
-        y = x.dot(W)
-        if b is not None:
-            y = y + b
-        return y
-
-    def backward(self, gy):
-        x, W, b = self.inputs
-        gb = None if b.data is None else sum_to(gy, b.shape)
-        gx = matmul(gy, W.T)
-        gW = matmul(x.T, gy)
-        return gx, gW, gb
-
-
-def linear(x, W, b=None):
-    return Linear()(x, W, b)
