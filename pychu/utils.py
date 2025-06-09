@@ -82,6 +82,13 @@ def plot_dot_graph(output, verbose=True, to_file="graph.png"):
 
 
 def sum_to(x, shape):
+    """指定したshapeに合わせてxをsumする
+    Args:
+        x: 入力のndarray
+        shape: 出力のshape
+    Returns:
+        xをshapeに合わせてsumしたndarray
+    """
     ndim = len(shape)
     lead = x.ndim - ndim
     lead_axis = tuple(range(lead))
