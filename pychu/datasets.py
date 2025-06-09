@@ -2,8 +2,24 @@ import numpy as np
 
 
 class Dataset:
-    def __init__(self, train=True):
+    def __init__(self, train=True, transform=None, target_transform=None):
+        """Datasetを作る
+
+        Args:
+            train (bool): trainがTrueであればtrain dataset.デフォルトはTrue
+            transform (Callable[[Any], Any] or None):
+                何かあれば入力を変換処理を行う.デフォルトはNone
+            target_transform (Callable[[Any], Any] or None):
+                何かあればラベルに対して変換処理を行う.デフォルトはNone
+        """
         self.train = train
+        self.transform = transform
+        self.target_transform = target_transform
+        if self.transform is None:
+            self.transform = lambda x: x
+        if self.target_transform is None:
+            self.target_transform = lambda x: x
+
         self.data = None
         self.label = None
         self.prepare()
@@ -11,10 +27,13 @@ class Dataset:
     def __getitem__(self, index):
         # assertはnp.isscalar(index)がTrueならば何も起きずFalseならエラーをあげる
         assert np.isscalar(index)
+        if self.data is None:
+            raise ValueError()
         if self.label is None:
-            return self.data[index], None  # type: ignore
+            return self.transform(self.data[index]), None
         else:
-            return self.data[index], self.label[index]  # type: ignore
+            return self.transform(self.data[index]), \
+                self.target_transform(self.label[index])
 
     def __len__(self):
         return len(self.data)  # type: ignore
