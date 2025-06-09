@@ -1,6 +1,8 @@
 import os
 import subprocess
 
+import numpy as np
+
 
 def _dot_var(v, verbose=False):
     """v: 変数"""
@@ -98,3 +100,13 @@ def sum_to(x, shape):
     if lead > 0:
         y = y.squeeze(lead_axis)
     return y
+
+
+def logsumexp(x, axis=1):
+    m = x.max(axis=axis, keepdims=True)
+    y = x - m
+    np.exp(y, out=y)
+    s = y.sum(axis=axis, keepdims=True)
+    np.log(s, out=s)
+    m += s
+    return m
