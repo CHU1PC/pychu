@@ -1,7 +1,12 @@
 import contextlib
+import os
+import sys
 import weakref
 
 import numpy as np
+
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+import pychu  # noqa
 
 """
 このファイルはVariableの演算子(+-*/%)などの設定
@@ -37,6 +42,18 @@ def no_grad():
     return using_config("enable_backprop", False)
 
 
+###############################################################################
+# cupy
+###############################################################################
+
+
+try:
+    import cupy
+    array_types = (np.ndarray, cupy.ndarray)
+except ImportError:
+    array_types = (np.ndarray)  # type: ignore
+
+
 # =============================================================================
 # Variable / Function
 # =============================================================================
@@ -66,8 +83,10 @@ class Variable:
 
     def __init__(self, data, name=None):
         if data is not None:
-            if not isinstance(data, np.ndarray):
-                data = np.array(data)
+            if not isinstance(data, array_types):
+                print(f"{data} was {type(data)}. so changed to {array_types}")
+                xp = pychu.cuda.get_array_module(np.zeros(0))
+                data = as_array(data, array_module=xp)
 
         self.data = data
         self.grad = None
@@ -89,7 +108,8 @@ class Variable:
             # self.grad = np.ones_like(self.data)
             # こうすることで今までndarrayで作られていたものではなくつながりを持った計算になる
             # つながりがあればそれに対してもまたそいつが何によって作られたのかなどがわかる
-            self.grad = Variable(np.ones_like(self.data))
+            xp = pychu.cuda.get_array_module(self.data)
+            self.grad = Variable(xp.ones_like(self.data))
 
         funcs = []
         seen_set = set()
@@ -179,6 +199,14 @@ class Variable:
         import pychu.functions as F
         return F.sum(self, axis, keepdims)
 
+    def to_cpu(self):
+        if self.data is not None:
+            self.data = pychu.cuda.as_numpy(self.data)
+
+    def to_gpu(self):
+        if self.data is not None:
+            self.data = pychu.cuda.as_cupy(self.data)
+
 
 class Function:
     # 変数と関数のつながりが作られる
@@ -220,55 +248,6 @@ class Function:
 # 演算子クラスと関数
 # =============================================================================
 
-def _setup_variable_operators():
-    ops = [
-        ('__add__', 'add'),
-        ('__radd__', 'add'),
-        ('__sub__', 'sub'),
-        ('__rsub__', 'sub'),
-        ('__mul__', 'mul'),
-        ('__rmul__', 'mul'),
-        ('__truediv__', 'div'),
-        ('__rtruediv__', 'div'),
-        ('__floordiv__', 'floordiv'),
-        ('__rfloordiv__', 'floordiv'),
-        ('__pow__', 'pow'),
-        ('__mod__', 'mod'),
-        ('__rmod__', 'mod'),
-    ]
-
-    for method, func in ops:
-        if method.startswith('__r'):
-            # setattrはVariableにmethod(__add__や__sub__, __mul__など)という名前で宣言できる
-            setattr(Variable, method,
-                    lambda self, other, f=func: globals()[f](other, self))
-        else:
-
-            setattr(Variable, method,
-                    lambda self, other, f=func: globals()[f](self, other))
-
-    # インプレース演算子
-    iops = [
-        ('__iadd__', '__add__'),
-        ('__isub__', '__sub__'),
-        ('__imul__', '__mul__'),
-        ('__itruediv__', '__truediv__'),
-        ('__ifloordiv__', '__floordiv__'),
-        ('__ipow__', '__pow__'),
-        ('__imod__', '__mod__'),
-    ]
-
-    def _inplace_op(self, other, method):
-        result = getattr(self, method)(other)
-        self.data = result.data
-        return self
-
-    Variable._inplace_op = _inplace_op  # type: ignore
-
-    for imethod, method in iops:
-        setattr(Variable, imethod,
-                lambda self, other, m=method: self._inplace_op(other, m))
-
 
 class Neg(Function):
     def forward(self, x):
@@ -276,6 +255,10 @@ class Neg(Function):
 
     def backward(self, gy):
         return -gy
+
+
+def neg(x):
+    return Neg()(x)
 
 
 class Add(Function):
@@ -293,6 +276,11 @@ class Add(Function):
         return gx0, gx1
 
 
+def add(x0, x1):
+    x1 = as_array(x1, pychu.cuda.get_array_module(x0.data))
+    return Add()(x0, x1)
+
+
 class Sub(Function):
     def forward(self, x0, x1):
         self.x0_shape, self.x1_shape = x0.shape, x1.shape
@@ -306,6 +294,16 @@ class Sub(Function):
             gx0 = F.sum_to(gx0, self.x0_shape)
             gx1 = F.sum_to(gx1, self.x1_shape)
         return gx0, gx1
+
+
+def sub(x0, x1):
+    x1 = as_array(x1, pychu.cuda.get_array_module(x0.data))
+    return Sub()(x0, x1)
+
+
+def rsub(x0, x1):
+    x1 = as_array(x1, pychu.cuda.get_array_module(x0.data))
+    return Sub()(x1, x0)
 
 
 class Mul(Function):
@@ -324,6 +322,11 @@ class Mul(Function):
         return gx0, gx1
 
 
+def mul(x0, x1):
+    x1 = as_array(x1, pychu.cuda.get_array_module(x0.data))
+    return Mul()(x0, x1)
+
+
 class Div(Function):
     def forward(self, x0, x1):
         return x0 / x1
@@ -339,6 +342,16 @@ class Div(Function):
         return gx0, gx1
 
 
+def div(x0, x1):
+    x1 = as_array(x1, pychu.cuda.get_array_module(x0.data))
+    return Div()(x0, x1)
+
+
+def rdiv(x0, x1):
+    x1 = as_array(x1, pychu.cuda.get_array_module(x0.data))
+    return Div()(x1, x0)
+
+
 class Pow(Function):
     def __init__(self, c):
         self.c = c
@@ -351,6 +364,10 @@ class Pow(Function):
         return gy * (self.c * x0 ** (self.c - 1))
 
 
+def pow(x, c):
+    return Pow(c)(x)
+
+
 class FloorDiv(Function):
     def forward(self, x0, x1):
         return x0 // x1
@@ -358,6 +375,10 @@ class FloorDiv(Function):
     def backward(self, gy):
         x0, x1 = self.inputs
         return gy * (1 // x1), gy * (-x0 // x1 ** 2)
+
+
+def floordiv(x0, x1):
+    return FloorDiv()(x0, x1)
 
 
 class Mod(Function):
@@ -370,36 +391,23 @@ class Mod(Function):
         return gy * 1, gy * (-q)
 
 
-def neg(x):
-    return Neg()(x)
-
-
-def add(x0, x1):
-    return Add()(x0, x1)
-
-
-def sub(x0, x1):
-    return Sub()(x0, x1)
-
-
-def mul(x0, x1):
-    return Mul()(x0, x1)
-
-
-def div(x0, x1):
-    return Div()(x0, x1)
-
-
-def floordiv(x0, x1):
-    return FloorDiv()(x0, x1)
-
-
-def pow(x, c):
-    return Pow(c)(x)
-
-
 def mod(x, c):
     return Mod()(x, c)
+
+
+def setup_variable():
+    Variable.__add__ = add  # type: ignore
+    Variable.__radd__ = add  # type: ignore
+    Variable.__mul__ = mul  # type: ignore
+    Variable.__rmul__ = mul  # type: ignore
+    Variable.__neg__ = neg  # type: ignore
+    Variable.__sub__ = sub  # type: ignore
+    Variable.__rsub__ = rsub  # type: ignore
+    Variable.__truediv__ = div  # type: ignore
+    Variable.__rtruediv__ = rdiv  # type: ignore
+
+    Variable.matmul = pychu.functions.matmul  # type: ignore
+    Variable.dot = pychu.functions.matmul  # type: ignore
 
 
 ###############################################################################
