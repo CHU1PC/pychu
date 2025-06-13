@@ -1,11 +1,5 @@
-import os
-import sys
-
 import numpy as np
-
 gpu_enable = True
-
-sys.path.append(os.path.join(os.path.dirname(__file__), "../"))
 try:
     import cupy as cp
     cupy = cp
