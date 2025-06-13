@@ -1,7 +1,8 @@
 import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
-from pychu import DataLoader, no_grad
+import pychu
+from pychu import DataLoader
 import pychu.datasets as datasets
 from pychu.models import MLP
 import pychu.optimizers as optimizers
