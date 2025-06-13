@@ -1,10 +1,12 @@
+import os
 import sys
 
 import numpy as np
 
-sys.path.append(r"D:\program\programming\study\ゼロから作るdeeplearning"
-                r"\ゼロから作る3\from_zero_3_github")
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+import pychu  # noqa
 import pychu.utils as utils  # noqa
+from pychu import cuda  # noqa
 from pychu.core import Function, Variable, as_array, as_variable  # noqa
 
 """
@@ -44,7 +46,8 @@ class BroadcastTo(Function):
 
     def forward(self, x):
         self.x_shape = x.shape
-        return np.broadcast_to(x, self.shape)
+        xp = pychu.cuda.get_array_module(x)
+        return xp.broadcast_to(x, self.shape)
 
     def backward(self, gy):
         # broadcastはデータの数を拡張しているため単純に勾配の値が増やした軸への和になる
@@ -100,7 +103,7 @@ def sum_to(x, shape):
 # matmul関数
 class MatMul(Function):
     def forward(self, x, W):
-        return np.matmul(x, W)
+        return x.dot(W)
 
     def backward(self, gy):
         x, W = self.inputs
@@ -127,7 +130,7 @@ class Linear(Function):
     def forward(self, x, W, b):
         y = x.dot(W)
         if b is not None:
-            y = y + b
+            y += b
         return y
 
     def backward(self, gy):
@@ -178,7 +181,8 @@ def sum(x, axis=None, keepdims=False):
 # sin関数
 class Sin(Function):
     def forward(self, x):
-        return np.sin(x)
+        xp = cuda.get_array_module(x)
+        return xp.sin(x)
 
     def backward(self, gy):
         x, = self.inputs
@@ -192,7 +196,8 @@ def sin(x):
 # cos関数
 class Cos(Function):
     def forward(self, x):
-        return np.cos(x)
+        xp = cuda.get_array_module(x)
+        return xp.cos(x)
 
     def backward(self, gy):
         x, = self.inputs
@@ -206,7 +211,8 @@ def cos(x):
 # tanh関数
 class Tanh(Function):
     def forward(self, x):
-        return np.tanh(x)
+        xp = cuda.get_array_module(x)
+        return xp.tanh(x)
 
     def backward(self, gy):
         # tanhの微分は1 - f(x)**2のためtanhの出力結果が必要となる
@@ -222,7 +228,8 @@ def tanh(x):
 # exp**x関数
 class Exp(Function):
     def forward(self, x):
-        return np.exp(x)
+        xp = cuda.get_array_module(x)
+        return xp.exp(x)
 
     def backward(self, gy):
         y = self.outputs[0]()
@@ -237,7 +244,8 @@ def exp(x):
 # sigmoid関数
 class Sigmoid(Function):
     def forward(self, x):
-        y = np.tanh(x * 0.5) * 0.5 + 0.5
+        xp = cuda.get_array_module(x)
+        y = xp.tanh(x * 0.5) * 0.5 + 0.5
         return y
 
     def backward(self, gy):
@@ -256,9 +264,10 @@ class Softmax(Function):
         self.axis = axis
 
     def forward(self, x):
+        xp = cuda.get_array_module(x)
         y = x - x.max(axis=self.axis, keepdims=True)
-        y = np.exp(y)
-        y = y / y.sum(axis=self.axis, keepdims=True)
+        y = xp.exp(y)
+        y /= y.sum(axis=self.axis, keepdims=True)
         return y
 
     def backeward(self, gy):
@@ -330,7 +339,8 @@ class SoftmaxCrossEntropy(Function):
         gy *= 1/N
         y = softmax(x)
         # convert to one-hot
-        t_onehot = np.eye(CLS_NUM, dtype=t.dtype)[t.data]
+        xp = cuda.get_array_module(t.data)
+        t_onehot = xp.eye(CLS_NUM, dtype=t.dtype)[t.data]
         y = (y - t_onehot) * gy
         return y
 

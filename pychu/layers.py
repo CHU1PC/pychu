@@ -1,12 +1,8 @@
-import sys
 import weakref
 
 import numpy as np
-
-sys.path.append(r"D:\program\programming\study\ゼロから作るdeeplearning"
-                r"\ゼロから作る3\from_zero_3_github")
-
 import pychu.functions as F  # noqa
+from pychu import cuda  # noqa
 from pychu.core import Parameter  # noqa
 
 """
@@ -61,6 +57,14 @@ class Layer:
         for param in self.params():
             param.cleargrad()
 
+    def to_cpu(self):
+        for param in self.params():
+            param.to_cpu()
+
+    def to_gpu(self):
+        for param in self.params():
+            param.to_gpu()
+
 
 class Linear(Layer):
     def __init__(self, out_size, nobias=False, dtype=np.float32, in_size=None):
@@ -78,16 +82,17 @@ class Linear(Layer):
         else:
             self.b = Parameter(np.zeros(out_size, dtype=dtype), name="b")
 
-    def _init_W(self):
+    def _init_W(self, xp=np):
         In, Out = self.in_size, self.out_size
-        W_data = np.random.randn(In, Out).astype(self.dtype) * np.sqrt(1 / In)
+        W_data = xp.random.randn(In, Out).astype(self.dtype) * np.sqrt(1 / In)
         self.W.data = W_data
 
     def forward(self, x):
         # in_sizeがNoneでself.WがNoneで初期化されていた場合forwardが呼び出されるときに入力と同じサイズだけ作る
         if self.W.data is None:
             self.in_size = x.shape[1]
-            self._init_W()
+            xp = cuda.get_array_module(x)
+            self._init_W(xp)
 
         y = F.linear(x, self.W, self.b)
         return y
