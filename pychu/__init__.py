@@ -5,6 +5,7 @@ if is_simple_core:
     from pychu.core_simple import (Function, Variable, as_variable,  # noqa
                                    no_grad)
 else:
+    # importの順番によってcircular importが起きてしまうため気を付けないといけない
     from pychu.core import Variable  # type: ignore # noqa
     from pychu.core import Parameter  # type: ignore # noqa
     from pychu.core import Function  # type: ignore # noqa
