@@ -12,5 +12,7 @@ else:
     from pychu.dataloader import DataLoader  # noqa
     from pychu.layers import Layer  # noqa
     from pychu.models import Model  # noqa
+    import pychu.transforms  # noqa
+    import pychu.optimizers  # noqa
 
 _setup_variable_operators()
