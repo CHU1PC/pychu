@@ -19,6 +19,7 @@ variable変数が使えるメソッド(T, shape, size)などの設定を行う
 # =============================================================================
 class Config:
     enable_backprop = True
+    train = True
 
 
 # 関数をwith文で使えるようにするもの
@@ -41,6 +42,9 @@ def using_config(name, value):
 def no_grad():
     return using_config("enable_backprop", False)
 
+
+def test_mode():
+    return using_config("train", False)
 
 ###############################################################################
 # cupy
