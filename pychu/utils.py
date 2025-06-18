@@ -103,6 +103,15 @@ def sum_to(x, shape):
 
 
 def logsumexp(x, axis=1):
+    """log( sum( exp(x)))を計算して返す
+
+    Args:
+        x (Variable): 独立変数x
+        axis (int): 和をとりたい方向, 0だと列方向, 1だと行方向, Defaults to 1.
+
+    Returns:
+        Variable: log( sum( exp(x)))を計算した値
+    """
     m = x.max(axis=axis, keepdims=True)
     y = x - m
     np.exp(y, out=y)
@@ -113,6 +122,17 @@ def logsumexp(x, axis=1):
 
 
 def pair(x):
+    """要素が1つの時にその唯一の要素を増やして(x, x)のように返す
+
+    Args:
+        x (Variable): pairにしたい(もうすでにpair)変数
+
+    Raises:
+        ValueError: xのsizeが1または2でないときにエラーをだす
+
+    Returns:
+        tuple: もとから要素数(size)が2ならそのまま, sizeが1なら(x, x)
+    """
     if isinstance(x, int):
         return (x, x)
     elif isinstance(x, tuple):
