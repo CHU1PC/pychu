@@ -395,6 +395,12 @@ def _col2im_gpu(col, SH, SW, PH, PW, H, W):
 # 畳み込み層
 class Conv2d(Function):
     def __init__(self, stride=1, pad=0):
+        """Conv2dの初期化
+
+        Args:
+            stride (int): ストライドのサイズ. Defaults to 1.
+            pad (int): パディングのサイズ. Defaults to 0.
+        """
         super().__init__()
         self.stride = pair(stride)
         self.pad = pair(pad)
