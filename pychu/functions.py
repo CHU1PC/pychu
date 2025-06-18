@@ -59,7 +59,7 @@ def broadcast_to(x, shape):
     """xをしたいshapeに拡張する
 
     Args:
-        x (ndarray): 変換したいndarray入力
+        x (Variable, ndarray): 変換したいndarray入力
         shape (tuple, list): 変換したい形(行列)
 
     Returns:
@@ -85,7 +85,7 @@ def sum_to(x, shape):
     """xを指定したshapeになるように和をとって変形させる
 
     Args:
-        x(ndarray): ndarrayの入力
+        x(Variable, ndarray): ndarrayの入力
         shape(tuple, list): 変換したい形(行列)
 
     Returns:
@@ -103,6 +103,13 @@ def sum_to(x, shape):
 
 class Im2col(Function):
     def __init__(self, filter, stride, pad, to_matrix):
+        """Im2colの初期化
+        Args:
+            filter (int, tuple, list): フィルターのサイズ
+            stride (int, tuple, list): ストライドのサイズ
+            pad (int, tuple, list): パディングのサイズ
+            to_matrix (bool):
+        """
         super().__init__()
         self.input_shape = None
         self.filter = filter
@@ -111,6 +118,14 @@ class Im2col(Function):
         self.to_matrix = to_matrix
 
     def forward(self, x):
+        """_summary_
+
+        Args:
+            x (tuple): img
+
+        Returns:
+            _type_: _description_
+        """
         self.input_shape = x.shape
         y = im2col_array(x, self.filter, self.stride, self.pad,
                          self.to_matrix)
@@ -126,7 +141,7 @@ def im2col(x, filter, stride=1, pad=0, to_matrix=True):
     """Extract patches from an image based on the filter.
 
     Args:
-        x (`dezero.Variable` or `ndarray`): Input variable of shape
+        x (Variable, ndarry): Input variable of shape
             `(N, C, H, W)`
         filter (int or (int, int)): Size of filter.
         stride (int or (int, int)): Stride of kernel.
@@ -177,15 +192,38 @@ def col2im(x, input_shape, filter, stride=1, pad=0, to_matrix=True):
 
 
 def im2col_array(img, filter, stride, pad, to_matrix=True):
-    batch_size, channel_size, height, width = \
-        img.shape
-    filter_height, filter_width = pair(filter)
-    stride_height, stride_width = pair(stride)
-    pad_height, pad_width = pair(pad)
-    output_height = \
-        get_conv_outsize(height, filter_height, stride_height, pad_height)
-    output_width = \
-        get_conv_outsize(width, filter_width, stride_width, pad_width)
+    """_summary_
+
+    Args:
+        img (_type_): _description_
+        filter (_type_): _description_
+        stride (_type_): _description_
+        pad (_type_): _description_
+        to_matrix (bool, optional): _description_. Defaults to True.
+
+    Returns:
+        _type_: _description_
+
+    Notation:
+        N: batch size
+        C: channel size
+        H: image height
+        W: image width
+        FH: filter height
+        FW: filter width
+        SH: stride height
+        SW: stride width
+        PH: padding height
+        PW: padding width
+        OH: output height
+        OW: output width
+    """
+    N, C, H, W = img.shape
+    FH, FW = pair(filter)
+    SH, SW = pair(stride)
+    PH, PW = pair(pad)
+    OH = get_conv_outsize(H, FH, SH, PH)
+    OW = get_conv_outsize(W, FW, SW, PW)
 
     xp = cuda.get_array_module(img)
     if xp != np:
@@ -193,133 +231,148 @@ def im2col_array(img, filter, stride, pad, to_matrix=True):
     else:
         img = np.pad(img,
                      ((0, 0), (0, 0),
-                      (pad_height, pad_height + stride_height - 1),
-                      (pad_width, pad_width + stride_width - 1)),
+                      (PH, PH + SH - 1),
+                      (PW, PW + SW - 1)),
                      mode="constant", constant_values=(0, ))
-        col = np.ndarray((batch_size,
-                          channel_size,
-                          filter_height, filter_width,
-                          output_height, output_width), dtype=img.dtype)
+        col = np.ndarray((N,
+                          C,
+                          FH, FW,
+                          OH, OW), dtype=img.dtype)
 
-        for j in range(filter_height):
-            j_lim = j + stride_height * output_height
-            for i in range(filter_width):
-                i_lim = i + stride_width * output_width
+        for j in range(FH):
+            j_lim = j + SH * OH
+            for i in range(FW):
+                i_lim = i + SW * OW
                 col[:, :, i, i, :, :] = \
-                    img[:, :, j:j_lim:stride_height, i:i_lim:stride_width]
+                    img[:, :, j:j_lim:SH, i:i_lim:SW]
     if to_matrix:
         col = col.transpose((0, 4, 5, 1, 2, 3)).\
-            reshape((batch_size * output_height * output_width, - 1))
+            reshape((N * OH * OW, - 1))
 
     return col
 
 
 def col2im_array(col, img_shape, filter, stride, pad, to_matrix=True):
-    batch_size, channel_size, height, width = img_shape
-    filter_height, filter_width = pair(filter)
-    stride_height, stride_width = pair(stride)
-    pad_height, pad_width = pair(pad)
-    output_height = \
-        get_conv_outsize(height, filter_height, stride_height, pad_height)
-    output_width = \
-        get_conv_outsize(width, filter_width, stride_width, pad_width)
+    """
+
+    Args:
+        col (_type_): _description_
+        img_shape (_type_): _description_
+        filter (_type_): _description_
+        stride (_type_): _description_
+        pad (_type_): _description_
+        to_matrix (bool, optional): _description_. Defaults to True.
+
+    Returns:
+        _type_: _description_
+
+    Notation:
+        N: batch size
+        C: channel size
+        H: image height
+        W: image width
+        FH: filter height
+        FW: filter width
+        SH: stride height
+        SW: stride width
+        PH: padding height
+        PW: padding width
+        OH: output height
+        OW: output width
+    """
+    N, C, H, W = img_shape
+    FH, FW = pair(filter)
+    SH, SW = pair(stride)
+    PH, PW = pair(pad)
+    OH = get_conv_outsize(H, FH, SH, PH)
+    OW = get_conv_outsize(W, FW, SW, PW)
 
     if to_matrix:
-        col = col.reshape(batch_size,
-                          output_height, output_width,
-                          channel_size,
-                          filter_height, filter_width).transpose(
-                              0, 3, 4, 5, 1, 2
-                          )
+        col = col.reshape(N, OH, OW, C, FH, FW).transpose(0, 3, 4, 5, 1, 2)
     xp = cuda.get_array_module(col)
     if xp != np:
-        img = _col2im_gpu(col, stride_height, stride_width, pad_height,
-                          pad_width, height, width)
+        img = _col2im_gpu(col, SH, SW, PH, PW, H, W)
         return img
     else:
-        img = np.zeros((batch_size, channel_size,
-                        height + 2 * pad_height + stride_height - 1,
-                        width + 2 * pad_width + stride_width - 1),
+        img = np.zeros((N, C, H + 2 * PH + SH - 1, W + 2 * PW + SW - 1),
                        dtype=col.dtype)
-        for j in range(filter_height):
-            j_lim = j + stride_height * output_height
-            for i in range(filter_width):
-                i_lim = i + stride_width * output_width
-                img[:, :, j:j_lim:stride_height, i:i_lim:stride_width] += \
+        for j in range(FH):
+            j_lim = j + SH * OH
+            for i in range(FW):
+                i_lim = i + SW * OW
+                img[:, :, j:j_lim:SH, i:i_lim:SW] += \
                     col[:, :, j, i, :, :]
-        return img[:, :,
-                   pad_height:height + pad_height,
-                   pad_width:width + pad_width]
+        return img[:, :, PH:H + PH, PW:W + PW]
 
 
 def _im2col_gpu(img, filter, stride, pad):
-    n, c, h, w = img.shape
-    kh, kw = pair(filter)
-    sy, sx = pair(stride)
-    ph, pw = pair(pad)
-    out_h = get_conv_outsize(h, kh, sy, ph)
-    out_w = get_conv_outsize(w, kw, sx, pw)
+    N, C, H, W = img.shape
+    FH, FW = pair(filter)
+    SH, SW = pair(stride)
+    PH, PW = pair(pad)
+    OH = get_conv_outsize(H, FH, SH, PH)
+    OW = get_conv_outsize(W, FW, SW, PW)
     dy, dx = 1, 1
-    col = cuda.cupy.empty((n, c, kh, kw, out_h, out_w), dtype=img.dtype)
+    col = cuda.cupy.empty((N, C, FH, FW, OH, OW), dtype=img.dtype)
 
     cuda.cupy.ElementwiseKernel(
-        'raw T img, int32 h, int32 w, int32 out_h, int32 out_w,'
-        'int32 kh, int32 kw, int32 sy, int32 sx, int32 ph, int32 pw,'
+        'raw T img, int32 H, int32 W, int32 OH, int32 OW,'
+        'int32 FH, int32 FW, int32 SH, int32 SW, int32 PH, int32 PW,'
         'int32 dy, int32 dx',
         'T col',
         '''
-           int c0 = i / (kh * kw * out_h * out_w);
-           int ky = i / (kw * out_h * out_w) % kh;
-           int kx = i / (out_h * out_w) % kw;
-           int out_y = i / out_w % out_h;
-           int out_x = i % out_w;
-           int in_y = ky * dy + out_y * sy - ph;
-           int in_x = kx * dx + out_x * sx - pw;
-           if (in_y >= 0 && in_y < h && in_x >= 0 && in_x < w) {
-             col = img[in_x + w * (in_y + h * c0)];
+           int c0 = i / (FH * FW * OH * OW);
+           int ky = i / (FW * OH * OW) % FH;
+           int kx = i / (OH * OW) % FW;
+           int out_y = i / OW % OH;
+           int out_x = i % OW;
+           int in_y = ky * dy + out_y * SH - PH;
+           int in_x = kx * dx + out_x * SW - PW;
+           if (in_y >= 0 && in_y < H && in_x >= 0 && in_x < W) {
+             col = img[in_x + W * (in_y + H * c0)];
            } else {
              col = 0;
            }
         ''',
         'im2col')(img.reduced_view(),
-                  h, w, out_h, out_w, kh, kw, sy, sx, ph, pw, dy, dx, col)
+                  H, W, OH, OW, FH, FW, SH, SW, PH, PW, dy, dx, col)
 
     return col
 
 
-def _col2im_gpu(col, sy, sx, ph, pw, h, w):
-    n, c, kh, kw, out_h, out_w = col.shape
-    dx, dy = 1, 1
-    img = cuda.cupy.empty((n, c, h, w), dtype=col.dtype)
+def _col2im_gpu(col, SH, SW, PH, PW, H, W):
+    N, C, FH, FW, OH, OW = col.shape
+    dy, dx = 1, 1
+    img = cuda.cupy.empty((N, C, H, W), dtype=col.dtype)
 
     cuda.cupy.ElementwiseKernel(
-        'raw T col, int32 h, int32 w, int32 out_h, int32 out_w,'
-        'int32 kh, int32 kw, int32 sy, int32 sx, int32 ph, int32 pw,'
+        'raw T col, int32 H, int32 W, int32 OH, int32 OW,'
+        'int32 FH, int32 FW, int32 SH, int32 SW, int32 PH, int32 PW,'
         'int32 dx, int32 dy',
         'T img',
         '''
-           int c0 = i / (h * w);
-           int y  = i / w % h;
-           int x  = i % w;
+           int c0 = i / (H * W);
+           int y  = i / W % H;
+           int x  = i % W;
            T val = 0;
-           for (int ky = 0; ky < kh; ++ky) {
-             int out_y = (y + ph - ky * dy);
-             if (0 > out_y || out_y >= out_h * sy) continue;
-             if (out_y % sy != 0) continue;
-             out_y /= sy;
-             for (int kx = 0; kx < kw; ++kx) {
-               int out_x = (x + pw - kx * dx);
-               if (0 > out_x || out_x >= out_w * sx) continue;
-               if (out_x % sx != 0) continue;
-               out_x /= sx;
-               int k = out_y + out_h * (kx + kw * (ky + kh * c0));
-               val = val + col[out_x + out_w * k];
+           for (int ky = 0; ky < FH; ++ky) {
+             int out_y = (y + PH - ky * dy);
+             if (0 > out_y || out_y >= OH * SH) continue;
+             if (out_y % SH != 0) continue;
+             out_y /= SH;
+             for (int kx = 0; kx < FW; ++kx) {
+               int out_x = (x + PW - kx * dx);
+               if (0 > out_x || out_x >= OW * SW) continue;
+               if (out_x % SW != 0) continue;
+               out_x /= SW;
+               int k = out_y + OH * (kx + FW * (ky + FH * c0));
+               val = val + col[out_x + OW * k];
              }
            }
            img = val;
         ''',
         'col2im')(col.reduced_view(),
-                  h, w, out_h, out_w, kh, kw, sy, sx, ph, pw, dx, dy, img)
+                  H, W, OH, OW, FH, FW, SH, SW, PH, PW, dx, dy, img)
     return img
 
 
@@ -573,8 +626,8 @@ def matmul(x, W):
     """行列積を計算するもの
 
     Args:
-        x (ndarray): テンソル
-        W (nadarray): x・WのW
+        x (Variable, ndarray): テンソル
+        W (Variable, nadarray): x・WのW
 
     Returns:
         Variable : 行列積をした後の行列を返す
