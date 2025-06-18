@@ -195,7 +195,7 @@ def im2col_array(img, filter, stride, pad, to_matrix=True):
     """_summary_
 
     Args:
-        img (_type_): _description_
+        img (): _description_
         filter (_type_): _description_
         stride (_type_): _description_
         pad (_type_): _description_
@@ -229,26 +229,31 @@ def im2col_array(img, filter, stride, pad, to_matrix=True):
     if xp != np:
         col = _im2col_gpu(img, filter, stride, pad)
     else:
+        # paddingする
         img = np.pad(img,
-                     ((0, 0), (0, 0),
-                      (PH, PH + SH - 1),
-                      (PW, PW + SW - 1)),
-                     mode="constant", constant_values=(0, ))
-        col = np.ndarray((N,
-                          C,
-                          FH, FW,
-                          OH, OW), dtype=img.dtype)
+                     ((0, 0),  # batch軸へのpadding
+                      (0, 0),  # channel軸へのpadding
+                      (PH, PH + SH - 1),  # height軸へのpadding
+                      (PW, PW + SW - 1)),  # width軸へのpadding
+                     mode="constant", constant_values=0)
+        col = np.ndarray((N, C, FH, FW, OH, OW), dtype=img.dtype)
 
+        # バッチごとにフィルターを適用していく
+        # jをフィルターのheight軸
         for j in range(FH):
             j_lim = j + SH * OH
+            # iをフィルターのwidth軸
             for i in range(FW):
                 i_lim = i + SW * OW
-                col[:, :, i, i, :, :] = \
-                    img[:, :, j:j_lim:SH, i:i_lim:SW]
+                # colのj, iの位置にimgのj:j_lim:SH, i:i_lim:SWを代入
+                col[:, :, j, i, :, :] = img[:, :, j:j_lim:SH, i:i_lim:SW]
     if to_matrix:
-        col = col.transpose((0, 4, 5, 1, 2, 3)).\
-            reshape((N * OH * OW, - 1))
+        # (N, C, FH, FW, OH, OW) -> (N, OH, OW, C, FH, FW)こうすることでreshapeでバッチごとに
+        col = col.transpose((0, 4, 5, 1, 2, 3)).reshape((N * OH * OW, - 1))
 
+    # col.shapeは(N * OH * OW, C * FH * FW)となる
+    # N * OH * OWは一度のミニバッチでどれだけの値が(ピクセル数)が使えるかを表す
+    # C * FH * FWは畳み込みを行うために必要な値(ピクセル)の数を表す
     return col
 
 
