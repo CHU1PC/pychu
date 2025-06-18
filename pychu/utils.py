@@ -121,6 +121,11 @@ def pair(x):
     else:
         raise ValueError
 
+
+def get_conv_outsize(input_size, filter_size, stride, pad):
+    return (input_size + pad * 2 - filter_size) // stride + 1
+
+
 # =============================================================================
 # download function
 # =============================================================================
@@ -132,8 +137,10 @@ def show_progress(block_num, block_size, total_size):
     downloaded = block_num * block_size
     p = downloaded / total_size * 100
     i = int(downloaded / total_size * 30)
-    if p >= 100.0: p = 100.0
-    if i >= 30: i = 30
+    if p >= 100.0:
+        p = 100.0
+    if i >= 30:
+        i = 30
     bar = "#" * i + "." * (30 - i)
     print(bar_template.format(bar, p), end='')
 
@@ -167,7 +174,7 @@ def get_file(url, file_name=None):
     print("Downloading: " + file_name)
     try:
         urllib.request.urlretrieve(url, file_path, show_progress)
-    except (Exception, KeyboardInterrupt) as e:
+    except (Exception, KeyboardInterrupt):
         if os.path.exists(file_path):
             os.remove(file_path)
         raise
