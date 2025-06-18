@@ -125,7 +125,7 @@ def pair(x):
     """要素が1つの時にその唯一の要素を増やして(x, x)のように返す
 
     Args:
-        x (Variable): pairにしたい(もうすでにpair)変数
+        x (Variable, k): pairにしたい(もうすでにpair)変数
 
     Raises:
         ValueError: xのsizeが1または2でないときにエラーをだす
