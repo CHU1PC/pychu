@@ -101,13 +101,14 @@ def sum_to(x, shape):
 ###############################################################################
 
 
+# image -> columns(行列の形)
 class Im2col(Function):
     def __init__(self, filter, stride, pad, to_matrix):
         """Im2colの初期化
         Args:
-            filter (int, tuple, list): フィルターのサイズ
-            stride (int, tuple, list): ストライドのサイズ
-            pad (int, tuple, list): パディングのサイズ
+            filter (int or (int, int)): フィルターのサイズ
+            stride (int or (int, int)): ストライドのサイズ
+            pad (int or (int, int)): パディングのサイズ
             to_matrix (bool):
         """
         super().__init__()
@@ -118,13 +119,14 @@ class Im2col(Function):
         self.to_matrix = to_matrix
 
     def forward(self, x):
-        """_summary_
-
+        """
         Args:
             x (tuple): img
 
         Returns:
-            _type_: _description_
+            col(list):
+                to_matrix = Trueの場合は(N * OH * OW, C * FH * FW)
+                to_matrix = Falseの場合は(N, C, FH, FW, OH, OW)
         """
         self.input_shape = x.shape
         y = im2col_array(x, self.filter, self.stride, self.pad,
@@ -132,77 +134,37 @@ class Im2col(Function):
         return y
 
     def backward(self, gy):
+        """
+        Args:
+            gy (Variable, ndarray): colとして出力したもの
+        forwardではim2colをしたためcol2imでimgに戻す
+        """
         gx = col2im(gy, self.input_shape, self.filter, self.stride,
                     self.pad, self.to_matrix)
         return gx
 
 
 def im2col(x, filter, stride=1, pad=0, to_matrix=True):
-    """Extract patches from an image based on the filter.
-
-    Args:
-        x (Variable, ndarry): Input variable of shape
-            `(N, C, H, W)`
-        filter (int or (int, int)): Size of filter.
-        stride (int or (int, int)): Stride of kernel.
-        pad (int or (int, int)): Spatial padding width for input arrays.
-        to_matrix (bool): If True the `col` will be reshaped to 2d array whose
-            shape is `(N*OH*OW, C*KH*KW)`
-
-    Returns:
-        `dezero.Variable`: Output variable. If the `to_matrix` is False, the
-            output shape is `(N, C, KH, KW, OH, OW)`, otherwise
-            `(N*OH*OW, C*KH*KW)`.
-
-    Notation:
-    - `N` is the batch size.
-    - `C` is the number of the input channels.
-    - `H` and `W` are the height and width of the input image, respectively.
-    - `KH` and `KW` are the height and width of the filters, respectively.
-    - `SH` and `SW` are the strides of the filter.
-    - `PH` and `PW` are the spatial padding sizes.
-    - `OH` and `OW` are the the height and width of the output, respectively.
-    """
     y = Im2col(filter, stride, pad, to_matrix)(x)
     return y
 
 
-class Col2im(Function):
-    def __init__(self, input_shape, filter, stride, pad, to_matrix):
-        super().__init__()
-        self.input_shape = input_shape
-        self.filter = filter
-        self.stride = stride
-        self.pad = pad
-        self.to_matrix = to_matrix
-
-    def forward(self, x):
-        y = col2im_array(x, self.input_shape, self.filter, self.stride,
-                         self.pad, self.to_matrix)
-        return y
-
-    def backward(self, gy):
-        gx = im2col(gy, self.filter, self.stride, self.pad,
-                    self.to_matrix)
-        return gx
-
-
-def col2im(x, input_shape, filter, stride=1, pad=0, to_matrix=True):
-    return Col2im(input_shape, filter, stride, pad, to_matrix)(x)
-
-
 def im2col_array(img, filter, stride, pad, to_matrix=True):
-    """_summary_
+    """フィルタによって画像からパッチを抽出する
 
     Args:
-        img (): _description_
-        filter (_type_): _description_
-        stride (_type_): _description_
-        pad (_type_): _description_
-        to_matrix (bool, optional): _description_. Defaults to True.
+        img (Variable, ndarray): 入力画像, shapeは(N, C, H, W)
+        filter (int or (int, int)): フィルタのサイズ
+        stride (int or (int, int)): ストライドのサイズ
+        pad (int or (int, int)): パディングのサイズ
+        to_matrix (bool, optional):
+            Trueなら2次元配列に変換する
+            Falseなら(N, C, FH, FW, OH, OW)のまま. Defaults to True.
 
     Returns:
-        _type_: _description_
+        list:
+            to_matrix = Trueの場合は(N * OH * OW, C * FH * FW)
+            to_matrix = Falseの場合は(N, C, FH, FW, OH, OW)
 
     Notation:
         N: batch size
@@ -249,65 +211,12 @@ def im2col_array(img, filter, stride, pad, to_matrix=True):
                 col[:, :, j, i, :, :] = img[:, :, j:j_lim:SH, i:i_lim:SW]
     if to_matrix:
         # (N, C, FH, FW, OH, OW) -> (N, OH, OW, C, FH, FW)こうすることでreshapeでバッチごとに
+        # col.shapeは(N * OH * OW, C * FH * FW)となる
+        # N * OH * OWは一度のミニバッチでどれだけの値が(ピクセル数)が使えるかを表す
+        # C * FH * FWは畳み込みを行うために必要な値(ピクセル)の数を表す
         col = col.transpose((0, 4, 5, 1, 2, 3)).reshape((N * OH * OW, - 1))
 
-    # col.shapeは(N * OH * OW, C * FH * FW)となる
-    # N * OH * OWは一度のミニバッチでどれだけの値が(ピクセル数)が使えるかを表す
-    # C * FH * FWは畳み込みを行うために必要な値(ピクセル)の数を表す
     return col
-
-
-def col2im_array(col, img_shape, filter, stride, pad, to_matrix=True):
-    """
-
-    Args:
-        col (_type_): _description_
-        img_shape (_type_): _description_
-        filter (_type_): _description_
-        stride (_type_): _description_
-        pad (_type_): _description_
-        to_matrix (bool, optional): _description_. Defaults to True.
-
-    Returns:
-        _type_: _description_
-
-    Notation:
-        N: batch size
-        C: channel size
-        H: image height
-        W: image width
-        FH: filter height
-        FW: filter width
-        SH: stride height
-        SW: stride width
-        PH: padding height
-        PW: padding width
-        OH: output height
-        OW: output width
-    """
-    N, C, H, W = img_shape
-    FH, FW = pair(filter)
-    SH, SW = pair(stride)
-    PH, PW = pair(pad)
-    OH = get_conv_outsize(H, FH, SH, PH)
-    OW = get_conv_outsize(W, FW, SW, PW)
-
-    if to_matrix:
-        col = col.reshape(N, OH, OW, C, FH, FW).transpose(0, 3, 4, 5, 1, 2)
-    xp = cuda.get_array_module(col)
-    if xp != np:
-        img = _col2im_gpu(col, SH, SW, PH, PW, H, W)
-        return img
-    else:
-        img = np.zeros((N, C, H + 2 * PH + SH - 1, W + 2 * PW + SW - 1),
-                       dtype=col.dtype)
-        for j in range(FH):
-            j_lim = j + SH * OH
-            for i in range(FW):
-                i_lim = i + SW * OW
-                img[:, :, j:j_lim:SH, i:i_lim:SW] += \
-                    col[:, :, j, i, :, :]
-        return img[:, :, PH:H + PH, PW:W + PW]
 
 
 def _im2col_gpu(img, filter, stride, pad):
@@ -343,6 +252,108 @@ def _im2col_gpu(img, filter, stride, pad):
                   H, W, OH, OW, FH, FW, SH, SW, PH, PW, dy, dx, col)
 
     return col
+
+
+# columns -> image
+class Col2im(Function):
+    def __init__(self, input_shape, filter, stride, pad, to_matrix):
+        """Col2imの初期化
+
+        Args:
+            input_shape (int or (int, int)): xのshape
+            filter (int or (int, int)): フィルタのサイズ
+            stride (int or (int, int)): ストライドのサイズ
+            pad (int or (int, int)): パディングのサイズ
+            to_matrix (bool):
+        """
+        super().__init__()
+        self.input_shape = input_shape
+        self.filter = filter
+        self.stride = stride
+        self.pad = pad
+        self.to_matrix = to_matrix
+
+    def forward(self, x):
+        """
+        Args:
+            x (Variabel, ndarray): 入力のtensor
+
+        Returns:
+            :
+        """
+        y = col2im_array(x, self.input_shape, self.filter, self.stride,
+                         self.pad, self.to_matrix)
+        return y
+
+    def backward(self, gy):
+        gx = im2col(gy, self.filter, self.stride, self.pad,
+                    self.to_matrix)
+        return gx
+
+
+def col2im(x, input_shape, filter, stride=1, pad=0, to_matrix=True):
+    return Col2im(input_shape, filter, stride, pad, to_matrix)(x)
+
+
+def col2im_array(col, img_shape, filter, stride, pad, to_matrix=True):
+    """
+
+    Args:
+        col (Variable, ndarray): 行列
+        img_shape (int or (int, int)): 画像のshape
+        filter (int or (int, int)): フィルタのサイズ
+        stride (int or (int, int)): ストライドのサイズ
+        pad (int or (int, int)): パディングのサイズ
+
+        to_matrix (bool, optional): _description_. Defaults to True.
+
+    Returns:
+        _type_: _description_
+
+    Notation:
+        N: batch size
+        C: channel size
+        H: image height
+        W: image width
+        FH: filter height
+        FW: filter width
+        SH: stride height
+        SW: stride width
+        PH: padding height
+        PW: padding width
+        OH: output height
+        OW: output width
+    """
+    N, C, H, W = img_shape
+    FH, FW = pair(filter)
+    SH, SW = pair(stride)
+    PH, PW = pair(pad)
+    OH = get_conv_outsize(H, FH, SH, PH)
+    OW = get_conv_outsize(W, FW, SW, PW)
+
+    if to_matrix:
+        # to_matrixがFalseのときはもとから(N, C, FH, FW, OH, OW)
+        # 元々の形である(N, C, FH, FW, OH, OW)に変える
+        col = col.reshape(N, OH, OW, C, FH, FW).transpose(0, 3, 4, 5, 1, 2)
+    xp = cuda.get_array_module(col)
+    if xp != np:
+        img = _col2im_gpu(col, SH, SW, PH, PW, H, W)
+        return img
+    else:
+        # colからimgに戻すときにもともと同じピクセルだったものが重複して出てきてそれを考慮するとこれだけ必要
+        img = np.zeros((N, C,
+                        H + 2 * PH + SH - 1,
+                        W + 2 * PW + SW - 1),
+                       dtype=col.dtype)
+        for j in range(FH):
+            j_lim = j + SH * OH
+            for i in range(FW):
+                i_lim = i + SW * OW
+                # colのj, iの位置にimgのj:j_lim:SH, i:i_lim:SWを代入
+                img[:, :, j:j_lim:SH, i:i_lim:SW] += \
+                    col[:, :, j, i, :, :]
+        # paddingを取り除く
+        return img[:, :, PH:H + PH, PW:W + PW]
 
 
 def _col2im_gpu(col, SH, SW, PH, PW, H, W):
@@ -381,6 +392,7 @@ def _col2im_gpu(col, SH, SW, PH, PW, H, W):
     return img
 
 
+# 畳み込み層
 class Conv2d(Function):
     def __init__(self, stride=1, pad=0):
         super().__init__()
