@@ -17,6 +17,7 @@ class Layer:
         self._paramsにはLayerのインスタンスが持つParameter, Layerクラスを持つ
         """
         self._params = set()
+        self.training = True
 
     def __setattr__(self, name, value):
         """インスタンス変数を宣言する際に呼び出されるメソッド
@@ -65,6 +66,22 @@ class Layer:
                 obj._flatten_params(params_dict, key)
             else:
                 params_dict[key] = obj
+
+    def train(self):
+        """すべてのParameterをtraining = Falseに変える"""
+        self.training = True
+        for name in self._params:
+            obj = self.__dict__[name]
+            if isinstance(obj, Layer):
+                obj.train()
+
+    def eval(self):
+        """すべてのParameterをtraining = Trueに変える"""
+        self.training = False
+        for name in self._params:
+            obj = self.__dict__[name]
+            if isinstance(obj, Layer):
+                obj.eval()
 
     def cleargrads(self):
         for param in self.params():
@@ -135,3 +152,19 @@ class Linear(Layer):
 
         y = F.linear(x, self.W, self.b)
         return y
+
+
+class Dropout(Layer):
+    def __init__(self, p=0.5):
+        super().__init__()
+        self.dropout_ratio = p
+
+    def forward(self, x):
+        if self.training:
+            xp = cuda.get_array_module(x)
+            mask = xp.random.rand(*x.shape) > self.dropout_ratio
+            scale = xp.array(1.0 - self.dropout_ratio).astype(x.dtype)
+            y = x * mask / scale
+            return y
+        else:
+            return x

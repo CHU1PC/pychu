@@ -409,6 +409,7 @@ def setup_variable():
     Variable.__rsub__ = rsub  # type: ignore
     Variable.__truediv__ = div  # type: ignore
     Variable.__rtruediv__ = rdiv  # type: ignore
+    Variable.__pow__ = pow  # type: ignore
 
     Variable.matmul = pychu.functions.matmul  # type: ignore
     Variable.dot = pychu.functions.matmul  # type: ignore
