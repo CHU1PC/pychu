@@ -1,3 +1,4 @@
+import os
 import weakref
 
 import numpy as np
@@ -13,7 +14,7 @@ from pychu.core import Parameter  # noqa
 class Layer:
     def __init__(self):
         """
-        self._paramsにはLayerのインスタンスが持つパラメータを保持するもの
+        self._paramsにはLayerのインスタンスが持つParameter, Layerクラスを持つ
         """
         self._params = set()
 
@@ -53,6 +54,18 @@ class Layer:
             else:
                 yield obj
 
+    def _flatten_params(self, params_dict, parent_key=""):
+        for name in self._params:
+            obj = self.__dict__[name]
+            # objがLayerであればparent_keyは最初にnameそこからname/nameとどんどん増えていく
+            key = parent_key + "/" + name if parent_key else name
+
+            if isinstance(obj, Layer):
+                # objがLayerなら再帰でLayerの中身を調べる
+                obj._flatten_params(params_dict, key)
+            else:
+                params_dict[key] = obj
+
     def cleargrads(self):
         for param in self.params():
             param.cleargrad()
@@ -64,6 +77,32 @@ class Layer:
     def to_gpu(self):
         for param in self.params():
             param.to_gpu()
+
+    def save_weights(self, path):
+        # GPU上にある時cupyを利用しているため, numpyを使うためにCPUへ
+        self.to_cpu()
+
+        params_dict: dict = {}
+        # params_dictに_flatten_paramsでLayerの構成を格納する
+        self._flatten_params(params_dict)
+
+        array_dict = {key: param.data for key, param in params_dict.items()
+                      if param is not None}
+
+        # 途中でエラーが発生したときに未完成のファイルの残さないためにremoveする
+        try:
+            np.savez_compressed(path, **array_dict)
+        except (Exception, KeyboardInterrupt):
+            if os.path.exists(path):
+                os.remove(path)
+            raise
+
+    def load_weights(self, path):
+        npz = np.load(path)
+        params_dict: dict = {}
+        self._flatten_params(params_dict)
+        for key, param in params_dict.items():
+            param.data = npz[key]
 
 
 class Linear(Layer):
