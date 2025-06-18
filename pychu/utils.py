@@ -146,6 +146,10 @@ def get_conv_outsize(input_size, filter_size, stride, pad):
     return (input_size + pad * 2 - filter_size) // stride + 1
 
 
+def get_deconv_outsize(size, k, s, p):
+    return s * (size - 1) + k - 2 * p
+
+
 # =============================================================================
 # download function
 # =============================================================================
