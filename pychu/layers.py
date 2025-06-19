@@ -176,12 +176,12 @@ class Dropout(Layer):
 
 
 class Conv2d(Layer):
-    def __init__(self, out_channels, filter, stride=1,
+    def __init__(self, out_channels, filter_size, stride=1,
                  pad=0, nobias=False, dtype=np.float32, in_channels=None):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
-        self.filter = filter
+        self.filter = filter_size
         self.stride = stride
         self.pad = pad
         self.dtype = dtype
