@@ -5,7 +5,7 @@ import weakref
 
 import numpy as np
 
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.append(os.path.join(os.path.dirname(__file__)))
 import pychu  # noqa
 
 """
