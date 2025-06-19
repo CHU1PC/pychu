@@ -122,6 +122,7 @@ class Layer:
             param.data = npz[key]
 
 
+# 全結合層
 class Linear(Layer):
     def __init__(self, out_size, nobias=False, dtype=np.float32, in_size=None):
         super().__init__()
@@ -175,6 +176,7 @@ class Dropout(Layer):
             return x
 
 
+# 畳み込み層
 class Conv2d(Layer):
     def __init__(self, out_channels, filter_size, stride=1,
                  pad=0, nobias=False, dtype=np.float32, in_channels=None):
