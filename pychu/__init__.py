@@ -29,5 +29,6 @@ else:
     import pychu.utils  # type: ignore # noqa
     import pychu.cuda  # type: ignore # noqa
     import pychu.transforms  # type: ignore # noqa
+    import pychu.config # type: ignore # noqa
 
 setup_variable()
