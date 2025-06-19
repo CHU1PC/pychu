@@ -1,0 +1,2 @@
+D:/program/programming/study/ゼロから作るdeeplearning/ゼロから作る3/from_zero_3_github/data/vgg16.npz filter=lfs diff=lfs merge=lfs -text
+data/vgg16.npz filter=lfs diff=lfs merge=lfs -text
