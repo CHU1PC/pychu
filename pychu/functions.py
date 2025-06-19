@@ -416,7 +416,7 @@ class Conv2d(Function):
             b (Variable or ndarray): バイアス
 
         Returns:
-            _type_: _description_
+            Variable or ndarray: 畳み込みをした4次元テンソル
 
         Notation:
             FH: filter height
@@ -451,6 +451,7 @@ class Conv2d(Function):
         # deconv2dでgy(特徴マップ)をもとの画像サイズに復元している
         gx = deconv2d(gy, weight, b=None, stride=self.stride, pad=self.pad,
                       outsize=(x.shape[2], x.shape[3]))
+
         gW = Conv2DGradW(self)(x, gy)
 
         gb = None
@@ -464,7 +465,7 @@ def conv2d(x, W, b=None, stride=1, pad=0):
     return Conv2d(stride, pad)(x, W, b)
 
 
-# 逆畳み込み
+# 転置畳み込み
 class Deconv2d(Function):
     def __init__(self, stride=1, pad=0, outsize=None):
         """Deconv2dの初期化
@@ -484,12 +485,12 @@ class Deconv2d(Function):
         """_summary_
 
         Args:
-            x (_type_): _description_
-            W (_type_): 重さ
-            b (_type_): _description_
+            x (Variable or ndarray): 転置畳み込み
+            W (Variable or ndarray): 重さ
+            b (Variable or ndarray): バイアス
 
         Returns:
-            _type_: _description_
+            Variable or ndarray: 転置畳み込みをした元の画像サイズと同じ4次元テンソル 
 
         Notation:
             N: batch size
@@ -558,19 +559,36 @@ def deconv2d(x, W, b=None, stride=1, pad=0, outsize=None):
     return Deconv2d(stride, pad, outsize)(x, W, b)
 
 
+# 畳み込み層のフィルタに対して勾配を計算する
 class Conv2DGradW(Function):
     def __init__(self, conv2d):
-        W = conv2d.inputs[1]
-        filter_height, filter_width = W.shape[2:]
-        self.filter = (filter_height, filter_width)
+        """Conv2DGradWの初期化
+
+        Args:
+            conv2d(Conv2D): 使用しているConv2Dのインスタンス
+
+        Notation:
+            FH: filter height
+            FW: filter width
+            SH: stride height
+            SW: stride width
+        """
+        weight = conv2d.inputs[1]
+        FH, FW = W.shape[2:]
+        self.filter = (FH, FW)
         self.stride = conv2d.stride
         self.pad = conv2d.pad
 
     def forward(self, x, gy):
+        """
+        Args:
+            x (Variable, ndarray): 入力画像, shapeは(N, C, H, W)
+            gy (Variable, ndarray): forwardで返したyに対する損失関数の勾配(aL/ay)
+        """
         xp = cuda.get_array_module(x)
 
-        col = im2col_array(x, self.filter, self.stride, self.pad,
-                           to_matrix=False)
+        col = im2col_array(x, self.filter, self.stride,
+                           self.pad, to_matrix=False)
 
         gW = xp.tensordot(gy, col, ((0, 2, 3), (0, 4, 5)))
         return gW
