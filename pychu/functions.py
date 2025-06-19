@@ -349,7 +349,9 @@ def col2im_array(col, img_shape, filter, stride, pad, to_matrix=True):
             j_lim = j + SH * OH
             for i in range(FW):
                 i_lim = i + SW * OW
+
                 # colのj, iの位置にimgのj:j_lim:SH, i:i_lim:SWを代入
+                # colのj, iの位置を指定してimgとshapeを合わせている
                 img[:, :, j:j_lim:SH, i:i_lim:SW] += \
                     col[:, :, j, i, :, :]
         # paddingを取り除く
@@ -392,7 +394,7 @@ def _col2im_gpu(col, SH, SW, PH, PW, H, W):
     return img
 
 
-# 畳み込み層
+# 畳み込み
 class Conv2d(Function):
     def __init__(self, stride=1, pad=0):
         """Conv2dの初期化
@@ -405,7 +407,7 @@ class Conv2d(Function):
         self.stride = pair(stride)
         self.pad = pair(pad)
 
-    def forward(self, x, W, b):
+    def forward(self, x, weight, b):
         """_summary_
 
         Args:
@@ -422,7 +424,7 @@ class Conv2d(Function):
         """
         xp = cuda.get_array_module(x)
 
-        FH, FW = W.shape[2:]
+        FH, FW = weight.shape[2:]
 
         # img(x)をcol((N, C, FH, FW, OH, OW)の6次元テンソル)に変換する
         col = im2col_array(x, filter=(FH, FW),
@@ -430,7 +432,7 @@ class Conv2d(Function):
 
         # colは(N, C, FH, FW, OH, OW), Wは(OC, C, FH, FW)のため
         # yは(N, OH, OW, OC)の4次元テンソルになる
-        y = xp.tensordot(col, W, ((1, 2, 3), (1, 2, 3)))
+        y = xp.tensordot(col, weight, ((1, 2, 3), (1, 2, 3)))
         if b is not None:
             y += b
         # yを(N, OH, OW, OC)->(N, OC, OH, OW)にする
@@ -438,8 +440,16 @@ class Conv2d(Function):
         return y
 
     def backward(self, gy):
-        x, W, b = self.inputs
-        gx = deconv2d(gy, W, b=None, stride=self.stride, pad=self.pad,
+        """
+        Args:
+            gy (Variable or ndarray): forwardで返したyに対する損失関数の勾配(aL/ay)
+
+        Returns:
+            _type_: _description_
+        """
+        x, weight, b = self.inputs
+        # deconv2dでgy(特徴マップ)をもとの画像サイズに復元している
+        gx = deconv2d(gy, weight, b=None, stride=self.stride, pad=self.pad,
                       outsize=(x.shape[2], x.shape[3]))
         gW = Conv2DGradW(self)(x, gy)
 
@@ -454,46 +464,80 @@ def conv2d(x, W, b=None, stride=1, pad=0):
     return Conv2d(stride, pad)(x, W, b)
 
 
+# 逆畳み込み
 class Deconv2d(Function):
     def __init__(self, stride=1, pad=0, outsize=None):
+        """Deconv2dの初期化
+
+        Args:
+            stride (int or (int, int)): ストライドのサイズ. Defaults to 1.
+            pad (int or (int, int)): パディングのサイズ. Defaults to 0.
+            outsize (int or (int, int)): outputのサイズ, Noneの場合は自動で計算する.
+                Defaults to None
+        """
         super().__init__()
         self.stride = pair(stride)
         self.pad = pair(pad)
         self.outsize = outsize
 
-    def forward(self, x, W, b):
+    def forward(self, x, weight, b):
+        """_summary_
+
+        Args:
+            x (_type_): _description_
+            W (_type_): 重さ
+            b (_type_): _description_
+
+        Returns:
+            _type_: _description_
+
+        Notation:
+            N: batch size
+            H: height
+            W: width
+            SH: stride height
+            SW: stride width
+            PH: pad height
+            PW: pad width
+            C: channel size
+            OC: output channel size
+            FH: filter height
+            FW: filter width
+            OH: output height
+            OW: output width
+        """
         xp = cuda.get_array_module(x)
 
-        Weight = W
-        stride_height, stride_width = self.stride
-        pad_height, pad_width = self.pad
-        channe_size, output_channel_size, filter_height, filter_width = \
-            Weight.shape
+        SH, SW = self.stride
+        PH, PW = self.pad
+        C, OC, FH, FW = weight.shape
 
-        batch_size, channe_size, height, width = x.shape
+        N, C, H, W = x.shape
 
         if self.outsize is None:
-            output_height = \
-                get_deconv_outsize(height, filter_height,
-                                   stride_height, pad_height)
-            output_width = \
-                get_deconv_outsize(width, filter_width,
-                                   stride_width, pad_width)
+            OH = get_deconv_outsize(H, FH, SH, PH)
+            OW = get_deconv_outsize(W, FW, SW, PW)
         else:
-            output_height, output_width = pair(self.outsize)
+            OH, OW = pair(self.outsize)
 
-        img_shape = (batch_size, output_channel_size,
-                     output_height, output_width)
+        img_shape = (N, OC, OH, OW)
 
-        gcol = xp.tensordot(Weight, x, (0, 1))
-        gcol = xp.rollaxis(gcol, 3)
+        # Weightは(OC, C, FH, FW), xは(N, C, H, W)のため
+        # gcolは(C, FH, FW, N, H, W)
+        gcol = xp.tensordot(weight, x, (0, 1))
 
-        y = col2im_array(gcol, img_shape, (filter_height, filter_width),
+        # (C, FH, FW, N, H, W) -> (N, C, FH, FW, H, W)に変換
+        gcol = xp.transpose(gcol, (3, 0, 1, 2, 4, 5))
+
+        # col(gcol)をimg(N, C, H, W)に変換する
+        y = col2im_array(gcol, img_shape, (FH, FW),
                          self.stride, self.pad, to_matrix=False)
 
         if b is not None:
             self.no_bias = True
+            # bはOC分あるのでそれをcolのshapeに合わせる
             y += b.reshape((1, b.size, 1, 1))
+
         return y
 
     def backward(self, gy):
