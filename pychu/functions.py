@@ -482,15 +482,15 @@ class Deconv2d(Function):
         self.outsize = outsize
 
     def forward(self, x, weight, b):
-        """_summary_
+        """Conv2dにおける(x)入力の勾配を求める
 
         Args:
-            x (Variable or ndarray): 転置畳み込み
+            x (Variable or ndarray): 畳み込みをされた特徴マップ
             W (Variable or ndarray): 重さ
             b (Variable or ndarray): バイアス
 
         Returns:
-            Variable or ndarray: 転置畳み込みをした元の画像サイズと同じ4次元テンソル 
+            Variable or ndarray: 畳み込みをした元の画像サイズと同じ4次元テンソル
 
         Notation:
             N: batch size
@@ -546,8 +546,7 @@ class Deconv2d(Function):
 
         gx = conv2d(gy, W, b=None, stride=self.stride, pad=self.pad)
 
-        f = Conv2DGradW(self)
-        gW = f(gy, x)
+        gW = Conv2DGradW(self)(gy, x)
 
         gb = None
         if b.data is not None:
@@ -574,22 +573,28 @@ class Conv2DGradW(Function):
             SW: stride width
         """
         weight = conv2d.inputs[1]
-        FH, FW = W.shape[2:]
+        FH, FW = weight.shape[2:]
         self.filter = (FH, FW)
         self.stride = conv2d.stride
         self.pad = conv2d.pad
 
     def forward(self, x, gy):
-        """
+        """Conv2dにおける(weight)重さの勾配を求める
+
         Args:
             x (Variable, ndarray): 入力画像, shapeは(N, C, H, W)
-            gy (Variable, ndarray): forwardで返したyに対する損失関数の勾配(aL/ay)
+            gy (Variable, ndarray): Conv2dで返した特徴マップ, shapeは(N, OC, OH, OW)
+
+        Returns:
+            _type_: _description_
         """
         xp = cuda.get_array_module(x)
 
         col = im2col_array(x, self.filter, self.stride,
                            self.pad, to_matrix=False)
 
+        # gyは(N, OC, OH, OW), colは(N, C, FH, FW, OH, OW)
+        # gWは(OC, C, FH, FW)
         gW = xp.tensordot(gy, col, ((0, 2, 3), (0, 4, 5)))
         return gW
 
