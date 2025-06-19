@@ -2,11 +2,11 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), "../"))
 
-import numpy as np
-import matplotlib.pyplot as plt
-import gzip
-from pychu.transforms import Compose, Flatten, ToFloat, Normalize
-from pychu.utils import get_file
+import numpy as np  # noqa
+import matplotlib.pyplot as plt  # noqa
+import gzip  # noqa
+from pychu.transforms import Compose, Flatten, ToFloat, Normalize  # noqa
+from pychu.utils import get_file  # noqa
 """
 データセットを作ったりするためのファイル
 """
@@ -94,12 +94,12 @@ class MNIST(Dataset):
 
     def __init__(self, train=True,
                  transform=Compose([Flatten(), ToFloat(),
-                                     Normalize(0., 255.)]),
+                                    Normalize(0., 255.)]),
                  target_transform=None):
         super().__init__(train, transform, target_transform)
 
     def prepare(self):
-        #url = 'http://yann.lecun.com/exdb/mnist/'
+        # url = 'http://yann.lecun.com/exdb/mnist/'
         url = 'https://ossci-datasets.s3.amazonaws.com/mnist/'  # mirror site
         train_files = {'target': 'train-images-idx3-ubyte.gz',
                        'label': 'train-labels-idx1-ubyte.gz'}
@@ -129,12 +129,29 @@ class MNIST(Dataset):
         img = np.zeros((H * row, W * col))
         for r in range(row):
             for c in range(col):
-                img[r * H:(r + 1) * H, c * W:(c + 1) * W] = self.data[
-                    np.random.randint(0, len(self.data) - 1)].reshape(H, W)
+                img[r * H:(r + 1) * H, c * W:(c + 1) * W] = \
+                    self.data[np.random.randint(0, len(self.data) - 1)].reshape(H, W)  # type: ignore # noqa
         plt.imshow(img, cmap='gray', interpolation='nearest')
         plt.axis('off')
         plt.show()
 
     @staticmethod
     def labels():
-        return {0: '0', 1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6', 7: '7', 8: '8', 9: '9'}
+        return {0: '0', 1: '1', 2: '2', 3: '3', 4: '4',
+                5: '5', 6: '6', 7: '7', 8: '8', 9: '9'}
+
+
+class ImageNet(Dataset):
+
+    def __init__(self):
+        NotImplemented
+
+    @staticmethod
+    def labels():
+        url = 'https://gist.githubusercontent.com/yrevar/942d3a0ac09ec9e5eb3a'\
+            '/raw/238f720ff059c1f82f368259d1ca4ffa5dd8f9f5'\
+            '/imagenet1000_clsidx_to_labels.txt'
+        path = get_file(url)
+        with open(path, 'r') as f:
+            labels = eval(f.read())
+        return labels
