@@ -398,24 +398,43 @@ class Conv2d(Function):
         """Conv2dの初期化
 
         Args:
-            stride (int): ストライドのサイズ. Defaults to 1.
-            pad (int): パディングのサイズ. Defaults to 0.
+            stride (int or (int, int)): ストライドのサイズ. Defaults to 1.
+            pad (int or (int, int)): パディングのサイズ. Defaults to 0.
         """
         super().__init__()
         self.stride = pair(stride)
         self.pad = pair(pad)
 
     def forward(self, x, W, b):
+        """_summary_
+
+        Args:
+            x (Variable or ndarray): 入力画像, shapeは(N, C, H, W)
+            W (Variable or ndarray): 重み、すべてのフィルター, shapeは(OC, C, FH, FW)
+            b (Variable or ndarray): バイアス
+
+        Returns:
+            _type_: _description_
+
+        Notation:
+            FH: filter height
+            FW: filter width
+        """
         xp = cuda.get_array_module(x)
 
-        filter_height, filter_width = W.shape[2:]
-        col = im2col_array(x, (filter_height, filter_width),
-                           self.stride, self.pad, to_matrix=False)
+        FH, FW = W.shape[2:]
 
+        # img(x)をcol((N, C, FH, FW, OH, OW)の6次元テンソル)に変換する
+        col = im2col_array(x, filter=(FH, FW),
+                           stride=self.stride, pad=self.pad, to_matrix=False)
+
+        # colは(N, C, FH, FW, OH, OW), Wは(OC, C, FH, FW)のため
+        # yは(N, OH, OW, OC)の4次元テンソルになる
         y = xp.tensordot(col, W, ((1, 2, 3), (1, 2, 3)))
         if b is not None:
             y += b
-        y = xp.rollaxis(y, 3, 1)
+        # yを(N, OH, OW, OC)->(N, OC, OH, OW)にする
+        y = xp.transpose(y, (0, 3, 1, 2))
         return y
 
     def backward(self, gy):
