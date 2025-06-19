@@ -30,3 +30,10 @@ class MLP(Model):
         for layer in self.layers[:-1]:
             x = self.activation(layer(x))
         return self.layers[-1](x)
+
+
+class VGG16(Model):
+    def __init__(self):
+        super().__init__():
+
+        self.conv1_1 = L.Conv
