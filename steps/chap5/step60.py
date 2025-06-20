@@ -42,11 +42,12 @@ optimizer = optim.Adam().setup(model)
 
 for epoch in range(max_epoch):
     model.reset_state()
-    loss, count = 0, 0
+    loss_sum, count = 0, 0
 
     for x, t in dataloader:
         y = model(x)
-        loss += F.mean_squared_error(y, t)
+        loss = F.mean_squared_error(y, t)
+        loss_sum += loss.data
         count += 1
 
         if count % bptt_length == 0 or count == seqlen:
@@ -54,5 +55,5 @@ for epoch in range(max_epoch):
             loss.backward()  # type: ignore
             loss.unchain_backward()  # type: ignore
             optimizer.update()
-    avg_loss = float(loss.data) / count  # type: ignore
+    avg_loss = float(loss_sum.data) / count  # type: ignore
     print(f"| epoch {epoch + 1}| loss {avg_loss}")
