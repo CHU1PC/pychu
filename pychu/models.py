@@ -34,9 +34,8 @@ class MLP(Model):
 
 
 class VGG16(Model):
-    WEIGHTS_PATH = \
-        os.path.join(os.path.dirname(__file__), "weight", "vgg16.npz")
 
+    # VGGの重みは公開されているためもし重みがあれば使う
     def __init__(self, pretrained=False):
         super().__init__()
 
@@ -57,8 +56,15 @@ class VGG16(Model):
         self.fc7 = L.Linear(4096)
         self.fc8 = L.Linear(1000)
 
+        self.dropout = L.Dropout(p=0.2)
+
+        if pretrained:
+            vgg16_weight = os.path.join(config.WEIGHTS_PATH, "vgg16.npz")
+            self.load_weights(vgg16_weight)
+
     def forward(self, x):
         x = F.relu(self.conv1_1(x))
+        x = F.relu(self.conv1_2(x))
         x = F.pooling(x, 2, 2)
         x = F.relu(self.conv2_1(x))
         x = F.relu(self.conv2_2(x))
@@ -76,8 +82,8 @@ class VGG16(Model):
         x = F.relu(self.conv5_3(x))
         x = F.pooling(x, 2, 2)
         x = F.reshape(x, (x.shape[0], -1))  # 2次元テンソルに変換
-        x = F.dropout(F.relu(self.fc6(x)))
-        x = F.dropout(F.relu(self.fc7(x)))
+        x = self.dropout(F.relu(self.fc6(x)))
+        x = self.dropout(F.relu(self.fc7(x)))
         x = self.fc8(x)
         return x
 
