@@ -68,7 +68,8 @@ class Layer:
                 params_dict[key] = obj
 
     def train(self):
-        """すべてのParameterをtraining = Falseに変える"""
+        """学習モードに変える. defaultでは学習モード
+        すべてのParameterをtraining = Falseに変える"""
         self.training = True
         for name in self._params:
             obj = self.__dict__[name]
@@ -76,7 +77,8 @@ class Layer:
                 obj.train()
 
     def eval(self):
-        """すべてのParameterをtraining = Trueに変える"""
+        """推論モードに変える
+        すべてのParameterをtraining = Trueに変える"""
         self.training = False
         for name in self._params:
             obj = self.__dict__[name]
