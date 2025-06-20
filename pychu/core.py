@@ -43,6 +43,7 @@ def no_grad():
     return using_config("enable_backprop", False)
 
 
+# 一時的に推論モードに変える
 def test_mode():
     return using_config("train", False)
 
