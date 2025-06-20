@@ -2,6 +2,8 @@ import os
 import subprocess
 import urllib.request
 import numpy as np
+import pychu
+import pychu.config
 
 
 def _dot_var(v, verbose=False):
@@ -65,7 +67,8 @@ def get_dot_graph(output, verbose=True):
     return 'digraph g{\n' + txt + '}'
 
 
-def plot_dot_graph(output, verbose=True, to_file="graph.png"):
+def plot_dot_graph(output, verbose=True,
+                   to_file=os.path.join(pychu.config.IMG_PATH, "graph.png")):
     dot_graph = get_dot_graph(output, verbose)
 
     # dotデータをファイルに保存
