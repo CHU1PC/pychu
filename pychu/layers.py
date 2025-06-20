@@ -231,20 +231,91 @@ class Conv2d(Layer):
 
 # RNN層
 class RNN(Layer):
+    """RNN層を作っている
+
+    RNN層は時系列データを取り扱えるが、逆伝番においてtanhの勾配は1-y^2でありあらゆる点で1-y^2 <= 1のため勾配消失が起こってしまう
+    ほかにも(Linear層の中で)Matmulを使っているため勾配爆発や勾配消滅が起きやすい(行列の時これは特異値のよって決まる, 特異値はWが重さの時
+    W @ WTの固有値の平方根(固有値は |W @ WT - tE| = 0 となるtの値)で求めれるこれの最大値が1以下ならば勾配爆発はしない)
+
+    補足: hidden(隠れ状態)とは出力に相当する, また短期的な情報を保持する
+    """
     def __init__(self, hidden_size, in_size=None):
         super().__init__()
         self.x2h = Linear(hidden_size, in_size=in_size)
         self.h2h = Linear(hidden_size, in_size=in_size, nobias=True)
-        self.h = None
+        self.prev_h = None
 
     def reset_state(self):
-        self.h = None
+        self.prev_h = None
 
     def forward(self, x):
-        if self.h is None:
+        if self.prev_h is None:
             # 以前の隠れ状態がなければそのままinputからhiddenを求める
             h_new = F.tanh(self.x2h(x))
         else:
             # 以前の隠れ状態がある場合それと新しく作ったhiddenをLinearに通して和をとる
-            h_new = F.tanh(self.x2h(x) + self.h2h(self.h))
+            h_new = F.tanh(self.x2h(x) + self.h2h(self.prev_h))
         return h_new
+
+
+# LSTM層
+class LSTM(Layer):
+    """LSTM層を作っている
+
+    LSTM層ではRNN層の弱点であった勾配爆発や勾配消滅が起きてしまうところを改善している, LSTMでは勾配クリッピング(勾配のノルムで勾配を割って
+    そこに定数(勾配のノルムの最大値)をかける、[例: |a| >= c -> a = c * a / |a|^2], ほかにもゲートを3つつけることで
+    より勾配消失を防ぐことができる
+
+    補足: cell(セル状態)とは、ある時刻tにおけるLSTMの長期記憶(過去の情報)を保持する内部状態
+    """
+    def __init__(self, hidden_size, in_size=None):
+        super().__init__()
+
+        HID, IN = hidden_size, in_size
+        self.x2f = Linear(HID, in_size=IN)
+        self.x2i = Linear(HID, in_size=IN)
+        self.x2o = Linear(HID, in_size=IN)
+        self.x2u = Linear(HID, in_size=IN)
+        self.h2f = Linear(HID, in_size=HID, nobias=True)
+        self.h2i = Linear(HID, in_size=HID, nobias=True)
+        self.h2o = Linear(HID, in_size=HID, nobias=True)
+        self.h2u = Linear(HID, in_size=HID, nobias=True)
+        self.reset_state()
+
+    def reset_state(self):
+        # 今までの隠れ状態とセル状態を初期化する
+        self.prev_hidden = None
+        self.prev_cell = None
+
+    def forward(self, x):
+        if self.prev_hidden is None:
+            # 隠れ状態がない場合
+            # forget(忘却)ゲート
+            forget = F.sigmoid(self.x2f(x))
+            # input(入力)ゲート
+            input = F.sigmoid(self.x2i(x))
+            # output(出力)ゲート
+            output = F.sigmoid(self.x2o(x))
+            # cellは新しく覚える情報
+            cell = F.tanh(self.x2u(x))
+
+        else:
+            # 隠れ状態がすでにある場合
+            # forget(忘却)ゲート
+            forget = F.sigmoid(self.x2f(x) + self.h2f(self.prev_hidden))
+            # input(入力)ゲート
+            input = F.sigmoid(self.x2i(x) + self.h2i(self.prev_hidden))
+            # output(出力)ゲート
+            output = F.sigmoid(self.x2o(x) + self.h2o(self.prev_hidden))
+            # cellは新しく覚える情報
+            cell = F.tanh(self.x2u(x) + self.h2u(self.prev_hidden))
+
+        if self.prev_cell is None:
+            cell_new = (input * cell)
+        else:
+            cell_new = (forget * self.prev_cell) + (input * cell)
+
+        hidden_new = output * F.tanh(cell_new)
+
+        self.prev_hidden, self.prev_cell = hidden_new, cell_new
+        return hidden_new

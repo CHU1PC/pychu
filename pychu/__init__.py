@@ -20,6 +20,7 @@ else:
     from pychu.models import Model  # type: ignore # noqa
     from pychu.datasets import Dataset  # type: ignore # noqa
     from pychu.dataloader import DataLoader  # type: ignore # noqa
+    from pychu.dataloader import SeqDataLoader  # type: ignore # noqa
 
     import pychu.datasets  # type: ignore # noqa
     import pychu.dataloader  # type: ignore # noqa

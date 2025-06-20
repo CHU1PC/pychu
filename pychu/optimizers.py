@@ -1,11 +1,13 @@
 import math
+import numpy as np
 from pychu import cuda
 
 
 class Optimizer:
-    def __init__(self):
+    def __init__(self, lr=None):
         self.target = None
         self.hooks = []
+        self.lr = lr
 
     def setup(self, target):
         self.target = target
@@ -28,6 +30,24 @@ class Optimizer:
 
     def add_hook(self, f):
         self.hooks.append(f)
+
+    def step(self):
+        max_norm = 5.0
+        total_norm = 0.0
+
+        for param in self.target.params():  # type: ignore
+            if param.grad is not None:
+                total_norm += (param.grad ** 2).sum()
+        total_norm = np.sqrt(total_norm)
+        rate = max_norm / (total_norm + 1e-6)
+        if rate < 1:
+            for param in self.target.params():  # type: ignore
+                if param.grad is not None:
+                    param.grad *= rate
+
+        for param in self.target.params():  # type: ignore
+            if param.grad is not None:
+                param.data -= self.lr * param.grad
 
 
 # SGD関数(勾配降下法)
@@ -103,10 +123,10 @@ class Adam(Optimizer):
     W = W - lr * m / (sqrt(v) + eps)
     mは過去の勾配の移動平均
     """
-    def __init__(self, alpha=0.001, beta1=0.9, beta2=0.999, eps=1e-8):
+    def __init__(self, lr=0.001, beta1=0.9, beta2=0.999, eps=1e-8):
         super().__init__()
         self.t = 0
-        self.alpha = alpha
+        self.lr = lr
         self.beta1 = beta1
         self.beta2 = beta2
         self.eps = eps
@@ -118,10 +138,10 @@ class Adam(Optimizer):
         super().update(*args, **kwargs)
 
     @property
-    def lr(self):
+    def alpha(self):
         fix1 = 1. - math.pow(self.beta1, self.t)
         fix2 = 1. - math.pow(self.beta2, self.t)
-        return self.alpha * math.sqrt(fix2) / fix1
+        return self.lr * math.sqrt(fix2) / fix1
 
     def update_one(self, param):
         xp = cuda.get_array_module(param.data)
@@ -136,4 +156,4 @@ class Adam(Optimizer):
 
         m += (1 - beta1) * (grad - m)
         v += (1 - beta2) * (grad * grad - v)
-        param.data -= self.lr * m / (xp.sqrt(v) + eps)
+        param.data -= self.alpha * m / (xp.sqrt(v) + eps)
