@@ -145,7 +145,7 @@ class Linear(Layer):
         """W(重さ)を初期化するメソッド
 
         Args:
-            xp (_type_, optional): _description_. Defaults to np.
+            xp (numpy or cupy): Defaults to np.
         """
         In, Out = self.in_size, self.out_size
         W_data = xp.random.randn(In, Out).astype(self.dtype) * np.sqrt(1 / In)
@@ -227,3 +227,24 @@ class Conv2d(Layer):
 
         y = F.conv2d(x, self.W, self.b, self.stride, self.pad)
         return y
+
+
+# RNN層
+class RNN(Layer):
+    def __init__(self, hidden_size, in_size=None):
+        super().__init__()
+        self.x2h = Linear(hidden_size, in_size=in_size)
+        self.h2h = Linear(hidden_size, in_size=in_size, nobias=True)
+        self.h = None
+
+    def reset_state(self):
+        self.h = None
+
+    def forward(self, x):
+        if self.h is None:
+            # 以前の隠れ状態がなければそのままinputからhiddenを求める
+            h_new = F.tanh(self.x2h(x))
+        else:
+            # 以前の隠れ状態がある場合それと新しく作ったhiddenをLinearに通して和をとる
+            h_new = F.tanh(self.x2h(x) + self.h2h(self.h))
+        return h_new
