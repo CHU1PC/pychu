@@ -231,6 +231,12 @@ class Conv2d(Layer):
 
 # RNN層
 class RNN(Layer):
+    """RNN層を作っている
+
+    RNN層は時系列データを取り扱えるが、逆伝番においてtanhの勾配は1-y^2でありあらゆる点で1-y^2 <= 1のため勾配消失が起こってしまう
+    ほかにも(Linear層の中で)Matmulを使っているため勾配爆発や勾配消滅が起きやすい(行列の時これは特異値のよって決まる, 特異値はWが重さの時
+    W @ WTの固有値の平方根(固有値は |W @ WT - tE| = 0 となるtの値)で求めれるこれの最大値が1以下ならば勾配爆発はしない)
+    """
     def __init__(self, hidden_size, in_size=None):
         super().__init__()
         self.x2h = Linear(hidden_size, in_size=in_size)
@@ -247,4 +253,54 @@ class RNN(Layer):
         else:
             # 以前の隠れ状態がある場合それと新しく作ったhiddenをLinearに通して和をとる
             h_new = F.tanh(self.x2h(x) + self.h2h(self.h))
+        return h_new
+
+
+# LSTM層
+class LSTM(Layer):
+    """LSTM層を作っている
+
+    LSTM層ではRNN層の弱点であった勾配爆発や勾配消滅が起きてしまうところを改善している, LSTMでは勾配クリッピング(勾配のノルムで勾配を割って
+    そこに定数(勾配のノルムの最大値)をかける、[例: |a| >= c -> a = c * a / |a|^2], ほかにもゲートを3つつけることで
+    より勾配消失を防ぐことができる
+    """
+    def __init__(self, hidden_size, in_size=None):
+        super().__init__()
+
+        HID, IN = hidden_size, in_size
+        self.x2f = Linear(HID, in_size=IN)
+        self.x2i = Linear(HID, in_size=IN)
+        self.x2o = Linear(HID, in_size=IN)
+        self.x2u = Linear(HID, in_size=IN)
+        self.h2f = Linear(HID, in_size=HID, nobias=True)
+        self.h2i = Linear(HID, in_size=HID, nobias=True)
+        self.h2o = Linear(HID, in_size=HID, nobias=True)
+        self.h2u = Linear(HID, in_size=HID, nobias=True)
+        self.reset_state()
+
+    def reset_state(self):
+        self.h = None
+        self.c = None
+
+    def forward(self, x):
+        if self.h is None:
+            # fはforget(忘却)ゲート
+            f = F.sigmoid(self.x2f(x))
+            i = F.sigmoid(self.x2i(x))
+            o = F.sigmoid(self.x2o(x))
+            u = F.tanh(self.x2u(x))
+        else:
+            f = F.sigmoid(self.x2f(x) + self.h2f(self.h))
+            i = F.sigmoid(self.x2i(x) + self.h2i(self.h))
+            o = F.sigmoid(self.x2o(x) + self.h2o(self.h))
+            u = F.tanh(self.x2u(x) + self.h2u(self.h))
+
+        if self.c is None:
+            c_new = (i * u)
+        else:
+            c_new = (f * self.c) + (i * u)
+
+        h_new = o * F.tanh(c_new)
+
+        self.h, self.c = h_new, c_new
         return h_new
