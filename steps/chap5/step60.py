@@ -48,7 +48,7 @@ for epoch in range(max_epoch):
     for x, t in dataloader:
         y = model(x)
         loss = F.mean_squared_error(y, t)
-        loss_sum += float(loss.data)
+        loss_sum += float(loss.data)  # type: ignore
         count += 1
 
         if count % bptt_length == 0 or count == seqlen:
