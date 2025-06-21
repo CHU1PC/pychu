@@ -274,14 +274,15 @@ class TimeRNN(Layer):
     def forward(self, xs):
         N, T, D = xs.shape
         hs = []
+        xp = cuda.get_array_module(xs)
         h = self.h if self.stateful and self.h is not None else \
-            np.zeros((N, self.hidden_size), dtype=xs.dtype)
+            xp.zeros((N, self.hidden_size), dtype=xs.dtype)
 
         for t in range(T):
             x = xs[:, t, :]
             h = self.rnn_cell(x)
             hs.append(h)
-        hs = np.stack(hs, axis=1)
+        hs = xp.stack(hs, axis=1)
         if self.stateful:
             self.h = h
         return hs
