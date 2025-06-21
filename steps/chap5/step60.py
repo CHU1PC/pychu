@@ -1,6 +1,7 @@
 import os
 import sys
-
+import numpy as np
+import matplotlib.pyplot as plt
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 import pychu  # noqa
@@ -47,7 +48,7 @@ for epoch in range(max_epoch):
     for x, t in dataloader:
         y = model(x)
         loss = F.mean_squared_error(y, t)
-        loss_sum += loss.data
+        loss_sum += float(loss.data)  # type: ignore
         count += 1
 
         if count % bptt_length == 0 or count == seqlen:
@@ -55,5 +56,22 @@ for epoch in range(max_epoch):
             loss.backward()  # type: ignore
             loss.unchain_backward()  # type: ignore
             optimizer.update()
-    avg_loss = float(loss_sum.data) / count  # type: ignore
+    avg_loss = float(loss_sum) / count  # type: ignore
     print(f"| epoch {epoch + 1}| loss {avg_loss}")
+
+xs = np.cos(np.linspace(0, 4 * np.pi, 1000))
+model.reset_state()
+pred_list = []
+
+with pychu.no_grad():
+    for x in xs:
+        x = np.array(x).reshape(1, 1)
+        y = model(x)
+        pred_list.append(float(y.data))
+
+plt.plot(np.arange(len(xs)), xs, label='y=cos(x)')
+plt.plot(np.arange(len(xs)), pred_list, label='predict')
+plt.xlabel('x')
+plt.ylabel('y')
+plt.legend()
+plt.show()
