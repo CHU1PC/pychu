@@ -1,12 +1,9 @@
-import os
-import sys
 import numpy as np
 
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from pychu.core import Function  # noqa
-from pychu.utils import pair  # noqa
-from pychu.functions import im2col_array, col2im_array  # noqa
-from pychu import cuda  # noqa
+from pychu.core import Function
+from pychu.utils import pair
+from pychu.functions import im2col_array, col2im_array
+from pychu import cuda
 
 
 class Pooling(Function):

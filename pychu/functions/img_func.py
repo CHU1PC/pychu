@@ -1,11 +1,8 @@
-import os
-import sys
 import numpy as np
 
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from pychu.core import Function  # noqa
-from pychu.utils import pair, get_conv_outsize, get_deconv_outsize  # noqa
-from pychu import cuda  # noqa
+from pychu.core import Function
+from pychu.utils import pair, get_conv_outsize, get_deconv_outsize
+from pychu import cuda
 
 
 ###############################################################################

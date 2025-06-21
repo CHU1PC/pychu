@@ -1,12 +1,9 @@
-import sys
-import os
-sys.path.append(os.path.join(os.path.dirname(__file__), "../"))
+import numpy as np
+import matplotlib.pyplot as plt
+import gzip
+from pychu.transforms import Compose, Flatten, ToFloat, Normalize
+from pychu.utils import get_file
 
-import numpy as np  # noqa
-import matplotlib.pyplot as plt  # noqa
-import gzip  # noqa
-from pychu.transforms import Compose, Flatten, ToFloat, Normalize  # noqa
-from pychu.utils import get_file  # noqa
 """
 データセットを作ったりするためのファイル
 """

@@ -1,9 +1,5 @@
-import os
-import sys
-
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from pychu import as_variable, as_array  # noqa
-from pychu.core import Variable  # noqa
+from pychu import as_variable, as_array
+from pychu.core import Variable
 
 
 def accuracy(y, t):
