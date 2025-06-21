@@ -30,7 +30,7 @@ def matmul(x, W):
 
     Args:
         x (Variable, ndarray): テンソル
-        W (Variable, nadarray): x・WのW
+        W (Variable, ndarray): x・WのW
 
     Returns:
         Variable : 行列積をした後の行列を返す

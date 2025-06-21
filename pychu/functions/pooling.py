@@ -70,7 +70,7 @@ class Pooling2DGrad(Function):
                    xp.arange(0, self.indexes.size * FH * FW, FH * FW))
 
         gcol[indexes] = gy.ravel()
-        gcol = gcol.resahpe(N, C, OH, OW, FH, FW)
+        gcol = gcol.reshape(N, C, OH, OW, FH, FW)
         gcol = xp.swapaxes(gcol, 2, 4)
         gcol = xp.swapaxes(gcol, 3, 5)
 
