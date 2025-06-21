@@ -259,6 +259,34 @@ class RNN(Layer):
         return h_new
 
 
+# TimeRNN層
+class TimeRNN(Layer):
+    def __init__(self, hidden_size, in_size=None, stateful=False):
+        super().__init__()
+        self.rnn_cell = RNN(hidden_size, in_size)
+        self.hidden_size = hidden_size
+        self.stateful = stateful
+        self.h = None
+
+    def reset_state(self):
+        self.h = None
+
+    def forward(self, xs):
+        N, T, D = xs.shape
+        hs = []
+        h = self.h if self.stateful and self.h is not None else \
+            np.zeros((N, self.hidden_size), dtype=xs.dtype)
+
+        for t in range(T):
+            x = xs[:, t, :]
+            h = self.rnn_cell(x)
+            hs.append(h)
+        hs = np.stack(hs, axis=1)
+        if self.stateful:
+            self.h = h
+        return hs
+
+
 # LSTM層
 class LSTM(Layer):
     """LSTM層を作っている
