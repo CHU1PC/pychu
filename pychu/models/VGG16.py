@@ -1,8 +1,5 @@
 import os
-import sys
-
 import numpy as np
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 import pychu  # noqa
 from pychu.models import Model  # noqa
 import pychu.layers as L  # noqa

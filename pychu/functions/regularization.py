@@ -1,10 +1,6 @@
-import os
-import sys
-
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-import pychu  # noqa
-from pychu import as_variable  # noqa
-from pychu import cuda  # noqa
+import pychu
+from pychu import as_variable
+from pychu import cuda
 
 
 def dropout(x, dropout_ratio=0.1):

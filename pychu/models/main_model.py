@@ -1,6 +1,5 @@
 import os
-import sys
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+
 import pychu.config as config  # noqa
 from pychu import Layer  # noqa
 from pychu import utils  # noqa

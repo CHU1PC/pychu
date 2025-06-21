@@ -1,12 +1,7 @@
-import os
-import sys
-
 import numpy as np
 
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-
-from PIL import Image  # noqa
-from pychu.utils import pair  # noqa
+from PIL import Image
+from pychu.utils import pair
 
 
 class Compose:

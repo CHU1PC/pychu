@@ -1,12 +1,9 @@
 import contextlib
-import os
-import sys
 import weakref
 
 import numpy as np
 
-sys.path.append(os.path.join(os.path.dirname(__file__)))
-import pychu  # noqa
+import pychu
 
 """
 このファイルはVariableの演算子(+-*/%)などの設定

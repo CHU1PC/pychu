@@ -1,10 +1,7 @@
-import os
-import sys
 import numpy as np
 
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from pychu import Function  # noqa
-from pychu import cuda  # noqa
+from pychu import Function
+from pychu import cuda
 
 
 # tanh関数

@@ -1,12 +1,10 @@
-import os
-import sys
 import numpy as np
 
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from pychu import Function  # noqa
-from pychu.functions import broadcast_to, softmax  # noqa
-from pychu import utils  # noqa
-from pychu import cuda  # noqa
+
+from pychu import Function
+from pychu.functions import broadcast_to, softmax
+from pychu import utils
+from pychu import cuda
 
 ###############################################################################
 # 損失関数(loss function)

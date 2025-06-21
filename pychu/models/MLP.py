@@ -1,6 +1,3 @@
-import os
-import sys
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 import pychu  # noqa
 from pychu.models import Model  # noqa
 import pychu.functions as F  # noqa
