@@ -142,7 +142,7 @@ class Variable:
                     if x.grad is None:
                         x.grad = gx
                     else:
-                        # これがx.grad += gxだとx.gradが上書きされるため
+                        # これがx.grad += gx(インプレース)だとy.gradとx.gradが同じアドレスを参照してしまう
                         # つながりがなくなってしまう
                         x.grad = x.grad + gx
 
