@@ -162,6 +162,7 @@ class Linear(Layer):
         return y
 
 
+# dropout層
 class Dropout(Layer):
     def __init__(self, p=0.5):
         super().__init__()
