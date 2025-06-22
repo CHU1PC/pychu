@@ -11,7 +11,7 @@ x = np.random.randn(2, 3, 4).astype(np.float32)
 
 layer = L.TimeLinear(out_size=5)
 
-y = layer.forward(x)
+y = layer(x)
 
 print(x.shape)
 print("-" * 50)
