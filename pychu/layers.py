@@ -131,7 +131,7 @@ class Linear(Layer):
 
         Args:
             out_size (int): 出力サイズ
-            nobias (bool): Trueならばself.b=NoneとしTrueならnp.zerosで初期化.
+            nobias (bool): Trueならばself.b=NoneとしFalseならnp.zerosで初期化.
                            Defaults to False.
             dtype (_type_): Defaults to np.float32.
             in_size (int): Noneならば自動で入力のサイズをin_sizeとする. Defaults to None.
@@ -335,7 +335,7 @@ class TimeRNN(Layer):
         N, T, D = xs.shape
         hs = []
         xp = cuda.get_array_module(xs)
-        # prev_hiddendが存在してstateful = Trueならばhを以前の隠れ状態とする
+        # prev_hiddenが存在してstateful = Trueならばhを以前の隠れ状態とする
         h = self.prev_hidden if self.stateful and self.prev_hidden is not None\
             else xp.zeros((N, self.hidden_size), dtype=xs.dtype)
 
