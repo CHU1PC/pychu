@@ -4,7 +4,7 @@ import weakref
 import numpy as np
 import pychu.functions as F  # noqa
 from pychu import cuda  # noqa
-from pychu.core import Parameter  # noqa
+from pychu.core import Parameter, as_variable  # noqa
 from pychu.utils import pair
 """
 パラメータの自動化を行うためのファイル
@@ -169,6 +169,36 @@ class Linear(Layer):
 
         y = F.linear(x, self.W, self.b)
         return y
+
+
+# TimeLinear層
+class TimeLinear(Layer):
+    def __init__(self, out_size, nobias=False, dtype=np.float32, in_size=None):
+        super().__init__()
+        self.in_size = in_size
+        self.linear = Linear(out_size, nobias, dtype, in_size)
+        self.out_size = out_size
+
+    def forward(self, xs):
+        """_summary_
+
+        Args:
+            xs (Variable, ndarray): 入力(input), shapeは(N, T, D)
+
+        Returns:
+            (Variable, ndarray): 出力(output), shapeは(N, T, out_size)
+
+        Notation:
+            N: バッチサイズ(batch size)
+            T: Linear層の次元数(number of Linear)
+            D: 入力ベクトルの次元数(input feature dimension)  補足: 1時刻あたりの特徴量
+        """
+        N, T, D = xs.shape
+        xs_reshape = xs.reshape(N * T, D)
+        ys = self.linear(xs_reshape)
+
+        ys = ys.reshape(N, T, self.out_size)
+        return ys
 
 
 # dropout層
