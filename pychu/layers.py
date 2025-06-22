@@ -335,13 +335,14 @@ class TimeRNN(Layer):
         N, T, D = xs.shape
         hs = []
         xp = cuda.get_array_module(xs)
-        h = self.prev_hidden if self.stateful and \
-            self.prev_hidden is not None else \
-            xp.zeros((N, self.hidden_size), dtype=xs.dtype)
+        # prev_hiddendが存在してstateful = Trueならばhを以前の隠れ状態とする
+        h = self.prev_hidden if self.stateful and self.prev_hidden is not None\
+            else xp.zeros((N, self.hidden_size), dtype=xs.dtype)
 
         for t in range(T):
             x = xs[:, t, :]
             # hがあればそれをprev_hとしてRNNのほうに保存する
+            # ここでrnnを以前の隠れ状態に加えて一回分適応したものがhとなる
             h = self.rnn_cell(x, h)
             hs.append(as_variable(h))
 
