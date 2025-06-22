@@ -57,6 +57,25 @@ def broadcast_to(x, shape):
     return BroadcastTo(shape)(x)
 
 
+class Stack(Function):
+    def __init__(self, axis=0):
+        self.axis = axis
+
+    def forward(self, *xs):
+        xp = cuda.get_array_module(xs)
+        return xp.stack(xs, axis=self.axis)
+
+    def backward(self, gy):
+        return tuple(gy.take(i, axis=self.axis) for i in
+                     range(gy.shape[self.axis]))
+
+
+def stack(xs, axis=0):
+    xs = [as_variable(x) for x in xs]
+    datas = [x.data for x in xs]
+    return as_variable(Stack(axis)(*datas))
+
+
 # sumto関数
 class SumTo(Function):
     def __init__(self, shape):
