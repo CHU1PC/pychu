@@ -342,7 +342,6 @@ class TimeRNN(Layer):
         for t in range(T):
             x = xs[:, t, :]
             # hがあればそれをprev_hとしてRNNのほうに保存する
-            self.rnn_cell.prev_h = h
             h = self.rnn_cell(x, h)
             hs.append(as_variable(h))
 
