@@ -32,7 +32,7 @@ class Layer:
         self.outputs = [weakref.ref(y) for y in outputs]
         return outputs if len(outputs) > 1 else outputs[0]
 
-    def forward(self, inputs):
+    def forward(self, *inputs):
         raise NotImplementedError
 
     def params(self):
