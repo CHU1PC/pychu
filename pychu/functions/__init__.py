@@ -5,6 +5,7 @@ from .img_func import Deconv2d, deconv2d, Conv2DGradW  # noqa
 
 from .tensor_func import Reshape, reshape  # noqa
 from .tensor_func import BroadcastTo, broadcast_to  # noqa
+from .tensor_func import Stack, stack  # noqa
 from .tensor_func import SumTo, sum_to  # noqa
 from .tensor_func import GetItem, GetItemGrad, get_item  # noqa
 
