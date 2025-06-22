@@ -133,3 +133,21 @@ class Dropout(Layer):
             return y
         else:
             return x
+
+
+class TimeDropout(Layer):
+    def __init__(self, p=0.5):
+        super().__init__()
+        self.dropout_ratio = p
+
+    def forward(self, xs):
+        if self.training:
+            xp = cuda.get_array_module(xs)
+            N, T, D = xs.shape
+            # 各時系列ごとに同じmaskを使う
+            mask = xp.random.rand(N, 1, D) > self.dropout_ratio
+            scale = xp.array(1.0 - self.dropout_ratio).astype(xs.dtype)
+            y = xs * mask / scale
+            return y
+        else:
+            return xs
