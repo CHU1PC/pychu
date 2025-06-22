@@ -350,7 +350,7 @@ class TimeRNN(Layer):
 
         if self.stateful:
             # statefulがTrueのときは以前の時系列データを受け継ぐ
-            self.h = h
+            self.prev_hidden = h
         return hs
 
 
@@ -440,7 +440,7 @@ class TimeLSTM(Layer):
         self.prev_cell = None
 
     def forward(self, xs):
-        """LSTMのforwardををT回分行う
+        """LSTMのforwardをT回分行う
 
         Args:
             xs (Variable, ndarray): 入力(input), shapeは(N, T, D)
