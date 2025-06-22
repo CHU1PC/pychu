@@ -184,6 +184,10 @@ class Variable:
     def dtype(self):
         return self.data.dtype
 
+    def __getitem__(self, slices):
+        import pychu.functions as F
+        return F.get_item(self, slices)
+
     def __len__(self):
         return len(self.data)
 

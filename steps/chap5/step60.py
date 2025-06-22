@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 import pychu  # noqa
-from pychu import Model  # noqa
+from pychu.models import Model  # noqa
 from pychu import SeqDataLoader  # noqa
 import pychu.functions as F  # noqa
 import pychu.layers as L  # noqa

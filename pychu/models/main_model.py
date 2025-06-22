@@ -1,7 +1,7 @@
 import os
 
 import pychu.config as config  # noqa
-from pychu import Layer  # noqa
+from pychu.layers import Layer  # noqa
 from pychu import utils  # noqa
 
 
