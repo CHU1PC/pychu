@@ -186,7 +186,7 @@ class TimeLinear(Layer):
             xs (Variable, ndarray): 入力(input), shapeは(N, T, D)
 
         Returns:
-            (Variable, ndarray): 出力(output), shapeは(N, T, out_size)
+            ys(Variable, ndarray): 出力(output), shapeは(N, T, out_size)
 
         Notation:
             N: バッチサイズ(batch size)
@@ -313,19 +313,19 @@ class TimeRNN(Layer):
         self.rnn_cell = RNN(hidden_size, in_size)
         self.hidden_size = hidden_size
         self.stateful = stateful
-        self.h = None
+        self.reset_state()
 
     def reset_state(self):
-        self.h = None
+        self.prev_hidden = None
 
     def forward(self, xs):
         """RNNのforwardをT回分行う
 
         Args:
-            xs (_type_): _description_
+            xs (Variable, ndarray): 入力(input), shapeは(N, T, D)
 
         Returns:
-            _type_: _description_
+            hs(Variable, ndarray): 出力(output), shapeは(N, T, hidden_size)
 
         Notation:
             N: バッチサイズ(batch size)
@@ -335,7 +335,8 @@ class TimeRNN(Layer):
         N, T, D = xs.shape
         hs = []
         xp = cuda.get_array_module(xs)
-        h = self.h if self.stateful and self.h is not None else \
+        h = self.prev_hidden if self.stateful and \
+            self.prev_hidden is not None else \
             xp.zeros((N, self.hidden_size), dtype=xs.dtype)
 
         for t in range(T):
@@ -442,10 +443,10 @@ class TimeLSTM(Layer):
         """LSTMのforwardををT回分行う
 
         Args:
-            xs (_type_): _description_
+            xs (Variable, ndarray): 入力(input), shapeは(N, T, D)
 
         Returns:
-            _type_: _description_
+            hs(Variable, ndarray): 出力(output), shapeは(N, T, hidden_size)
 
         Notation:
             N: バッチサイズ(batch size)
