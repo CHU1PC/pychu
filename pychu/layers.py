@@ -283,18 +283,17 @@ class RNN(Layer):
         super().__init__()
         self.x2h = Linear(hidden_size, in_size=in_size)
         self.h2h = Linear(hidden_size, in_size=in_size, nobias=True)
-        self.prev_h = None
 
     def reset_state(self):
         self.prev_h = None
 
-    def forward(self, x):
-        if self.prev_h is None:
+    def forward(self, x, h=None):
+        if h is None:
             # 以前の隠れ状態がなければそのままinputからhiddenを求める
             h_new = F.tanh(self.x2h(x))
         else:
             # 以前の隠れ状態がある場合それと新しく作ったhiddenをLinearに通して和をとる
-            h_new = F.tanh(self.x2h(x) + self.h2h(self.prev_h))
+            h_new = F.tanh(self.x2h(x) + self.h2h(h))
         return h_new
 
 
@@ -343,10 +342,10 @@ class TimeRNN(Layer):
             x = xs[:, t, :]
             # hがあればそれをprev_hとしてRNNのほうに保存する
             self.rnn_cell.prev_h = h
-            h = self.rnn_cell(x)
-            hs.append(h)
+            h = self.rnn_cell(x, h)
+            hs.append(as_variable(h))
 
-        hs = xp.stack(hs, axis=1)
+        hs = F.stack(hs, axis=1)
 
         if self.stateful:
             # statefulがTrueのときは以前の時系列データを受け継ぐ
