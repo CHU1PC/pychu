@@ -127,6 +127,15 @@ class Layer:
 # 全結合層
 class Linear(Layer):
     def __init__(self, out_size, nobias=False, dtype=np.float32, in_size=None):
+        """_summary_
+
+        Args:
+            out_size (int): 出力サイズ
+            nobias (bool): Trueならばself.b=NoneとしTrueならnp.zerosで初期化.
+                           Defaults to False.
+            dtype (_type_): Defaults to np.float32.
+            in_size (int): Noneならば自動で入力のサイズをin_sizeとする. Defaults to None.
+        """
         super().__init__()
         self.in_size = in_size
         self.out_size = out_size
@@ -262,6 +271,15 @@ class RNN(Layer):
 # TimeRNN層
 class TimeRNN(Layer):
     def __init__(self, hidden_size, in_size=None, stateful=False):
+        """TimeRNNの初期化
+
+        Args:
+            hidden_size (int): 中間層の次元数
+            in_size (int): 入力サイズ, Noneならば入力のsizeを自動でin_sizeとする.
+                           Defaults to None.
+            stateful (bool): TrueであればTimeRNNのなかの各RNN同士が隠れ状態を引き継ぐ.
+                             Defaults to False.
+        """
         super().__init__()
         self.rnn_cell = RNN(hidden_size, in_size)
         self.hidden_size = hidden_size
@@ -272,6 +290,19 @@ class TimeRNN(Layer):
         self.h = None
 
     def forward(self, xs):
+        """_summary_
+
+        Args:
+            xs (_type_): _description_
+
+        Returns:
+            _type_: _description_
+
+        Notation:
+            N: バッチサイズ(batch size)
+            T: RNNの次元数(number of RNN)
+            D: 入力ベクトルの次元数(input feature dimension)  補足: 1時刻あたりの特徴量
+        """
         N, T, D = xs.shape
         hs = []
         xp = cuda.get_array_module(xs)
@@ -280,10 +311,15 @@ class TimeRNN(Layer):
 
         for t in range(T):
             x = xs[:, t, :]
+            # hがあればそれをprev_hとしてRNNのほうに保存する
+            self.rnn_cell.prev_h = h
             h = self.rnn_cell(x)
             hs.append(h)
+
         hs = xp.stack(hs, axis=1)
+
         if self.stateful:
+            # statefulがTrueのときは以前の時系列データを受け継ぐ
             self.h = h
         return hs
 
