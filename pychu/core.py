@@ -153,9 +153,9 @@ class Variable:
     def cleargrad(self):
         self.grad = None
 
-    def reshape(self, *shape_):
-        if len(shape_) == 1 and isinstance(shape_[0], (tuple, list)):
-            shape = shape_[0]
+    def reshape(self, *shape):
+        if len(shape) == 1 and isinstance(shape[0], (tuple, list)):
+            shape = shape[0]  # type: ignore
         from pychu import functions
         return functions.reshape(self, shape)
 

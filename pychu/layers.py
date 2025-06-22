@@ -4,7 +4,7 @@ import weakref
 import numpy as np
 import pychu.functions as F  # noqa
 from pychu import cuda  # noqa
-from pychu.core import Parameter  # noqa
+from pychu.core import Parameter, as_variable  # noqa
 from pychu.utils import pair
 """
 パラメータの自動化を行うためのファイル
@@ -127,6 +127,15 @@ class Layer:
 # 全結合層
 class Linear(Layer):
     def __init__(self, out_size, nobias=False, dtype=np.float32, in_size=None):
+        """_summary_
+
+        Args:
+            out_size (int): 出力サイズ
+            nobias (bool): Trueならばself.b=NoneとしFalseならnp.zerosで初期化.
+                           Defaults to False.
+            dtype (_type_): Defaults to np.float32.
+            in_size (int): Noneならば自動で入力のサイズをin_sizeとする. Defaults to None.
+        """
         super().__init__()
         self.in_size = in_size
         self.out_size = out_size
@@ -160,6 +169,36 @@ class Linear(Layer):
 
         y = F.linear(x, self.W, self.b)
         return y
+
+
+# TimeLinear層
+class TimeLinear(Layer):
+    def __init__(self, out_size, nobias=False, dtype=np.float32, in_size=None):
+        super().__init__()
+        self.in_size = in_size
+        self.linear = Linear(out_size, nobias, dtype, in_size)
+        self.out_size = out_size
+
+    def forward(self, xs):
+        """LinearのforwardをT回分行う
+
+        Args:
+            xs (Variable, ndarray): 入力(input), shapeは(N, T, D)
+
+        Returns:
+            ys(Variable, ndarray): 出力(output), shapeは(N, T, out_size)
+
+        Notation:
+            N: バッチサイズ(batch size)
+            T: Linear層の次元数(number of Linear)
+            D: 入力ベクトルの次元数(input feature dimension)  補足: 1時刻あたりの特徴量
+        """
+        N, T, D = xs.shape
+        xs_reshape = xs.reshape(N * T, D)
+        ys = self.linear(xs_reshape)
+
+        ys = ys.reshape(N, T, self.out_size)
+        return ys
 
 
 # dropout層
@@ -244,19 +283,75 @@ class RNN(Layer):
         super().__init__()
         self.x2h = Linear(hidden_size, in_size=in_size)
         self.h2h = Linear(hidden_size, in_size=in_size, nobias=True)
-        self.prev_h = None
 
     def reset_state(self):
         self.prev_h = None
 
-    def forward(self, x):
-        if self.prev_h is None:
+    def forward(self, x, h=None):
+        if h is None:
             # 以前の隠れ状態がなければそのままinputからhiddenを求める
             h_new = F.tanh(self.x2h(x))
         else:
             # 以前の隠れ状態がある場合それと新しく作ったhiddenをLinearに通して和をとる
-            h_new = F.tanh(self.x2h(x) + self.h2h(self.prev_h))
+            h_new = F.tanh(self.x2h(x) + self.h2h(h))
         return h_new
+
+
+# TimeRNN層
+class TimeRNN(Layer):
+    def __init__(self, hidden_size, in_size=None, stateful=False):
+        """TimeRNNの初期化
+
+        Args:
+            hidden_size (int): 中間層の次元数
+            in_size (int): 入力サイズ, Noneならば入力のsizeを自動でin_sizeとする.
+                           Defaults to None.
+            stateful (bool): TrueであればTimeRNNのなかの各RNN同士が隠れ状態を引き継ぐ.
+                             Defaults to False.
+        """
+        super().__init__()
+        self.rnn_cell = RNN(hidden_size, in_size)
+        self.hidden_size = hidden_size
+        self.stateful = stateful
+        self.reset_state()
+
+    def reset_state(self):
+        self.prev_hidden = None
+
+    def forward(self, xs):
+        """RNNのforwardをT回分行う
+
+        Args:
+            xs (Variable, ndarray): 入力(input), shapeは(N, T, D)
+
+        Returns:
+            hs(Variable, ndarray): 出力(output), shapeは(N, T, hidden_size)
+
+        Notation:
+            N: バッチサイズ(batch size)
+            T: RNNの次元数(number of RNN)
+            D: 入力ベクトルの次元数(input feature dimension)  補足: 1時刻あたりの特徴量
+        """
+        N, T, D = xs.shape
+        hs = []
+        xp = cuda.get_array_module(xs)
+        # prev_hiddenが存在してstateful = Trueならばhを以前の隠れ状態とする
+        h = self.prev_hidden if self.stateful and self.prev_hidden is not None\
+            else xp.zeros((N, self.hidden_size), dtype=xs.dtype)
+
+        for t in range(T):
+            x = xs[:, t, :]
+            # hがあればそれをprev_hとしてRNNのほうに保存する
+            # ここでrnnを以前の隠れ状態に加えて一回分適応したものがhとなる
+            h = self.rnn_cell(x, h)
+            hs.append(as_variable(h))
+
+        hs = F.stack(hs, axis=1)
+
+        if self.stateful:
+            # statefulがTrueのときは以前の時系列データを受け継ぐ
+            self.prev_hidden = h
+        return hs
 
 
 # LSTM層
@@ -320,3 +415,63 @@ class LSTM(Layer):
 
         self.prev_hidden, self.prev_cell = hidden_new, cell_new
         return hidden_new
+
+
+class TimeLSTM(Layer):
+    def __init__(self, hidden_size, in_size=None, stateful=False):
+        """TimeLSTMの初期化
+
+        Args:
+            hidden_size (int): 中間層の次元数
+            in_size (int): 入力サイズ, Noneならば入力のsizeを自動でin_sizeとする.
+                           Defaults to None.
+            stateful (bool): TrueであればTimeRNNのなかの各LSTM同士が隠れ状態を引き継ぐ.
+                             Defaults to False.
+        """
+        super().__init__()
+        self.lstm_cell = LSTM(hidden_size, in_size)
+        self.hidden_size = hidden_size
+        self.stateful = stateful
+        self.reset_state()
+
+    def reset_state(self):
+        # 今までの隠れ状態とセル状態を初期化する
+        self.prev_hidden = None
+        self.prev_cell = None
+
+    def forward(self, xs):
+        """LSTMのforwardをT回分行う
+
+        Args:
+            xs (Variable, ndarray): 入力(input), shapeは(N, T, D)
+
+        Returns:
+            hs(Variable, ndarray): 出力(output), shapeは(N, T, hidden_size)
+
+        Notation:
+            N: バッチサイズ(batch size)
+            T: LSTMの次元数(number of RNN)
+            D: 入力ベクトルの次元数(input feature dimension)  補足: 1時刻あたりの特徴量
+        """
+        N, T, D = xs.shape
+        hs = []
+        xp = cuda.get_array_module(xs)
+        h = self.prev_hidden if self.stateful and self.prev_hidden is not None\
+            else xp.zeros((N, self.hidden_size), dtype=xs.dtype)
+        c = self.prev_cell if self.stateful and self.prev_cell is not None \
+            else xp.zeros((N, self.hidden_size), dtype=xs.dtype)
+        self.lstm_cell.prev_hidden = h
+        self.lstm_cell.prev_cell = c
+
+        for t in range(T):
+            x = xs[:, t, :]
+            h = self.lstm_cell(x)
+            c = self.lstm_cell.prev_cell
+            hs.append(as_variable(h))
+
+        hs = F.stack(hs, axis=1)
+
+        if self.stateful:
+            self.prev_hidden = h
+            self.prev_cell = c
+        return hs
