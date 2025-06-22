@@ -2,12 +2,14 @@
 import numpy as np
 import pychu.functions as F
 from pychu import cuda
+from pychu import as_variable
 from pychu.core import Parameter
 from pychu.layers import Layer
 
 
 class Linear(Layer):
-    def __init__(self, out_size, nobias=False, dtype=np.float32, in_size=None):
+    def __init__(self, out_size, nobias=False, dtype=np.float32,
+                 in_size=None, W=None):
         """_summary_
 
         Args:
@@ -16,15 +18,19 @@ class Linear(Layer):
                            Defaults to False.
             dtype (_type_): Defaults to np.float32.
             in_size (int): Noneならば自動で入力のサイズをin_sizeとする. Defaults to None.
+            W (Variable, ndarray): NoneならばParameterで初期化を行う
         """
         super().__init__()
         self.in_size = in_size
         self.out_size = out_size
         self.dtype = dtype
 
-        self.W = Parameter(None, name="W")
-        if self.in_size is not None:
-            self._init_W()
+        if W is not None:
+            self.W = as_variable(W)
+        else:
+            self.W = Parameter(None, name="W")
+            if self.in_size is not None:
+                self._init_W()
 
         if nobias:
             self.b = None
@@ -54,10 +60,11 @@ class Linear(Layer):
 
 # TimeLinear層
 class TimeLinear(Layer):
-    def __init__(self, out_size, nobias=False, dtype=np.float32, in_size=None):
+    def __init__(self, out_size, nobias=False, dtype=np.float32,
+                 in_size=None, W=None):
         super().__init__()
         self.in_size = in_size
-        self.linear = Linear(out_size, nobias, dtype, in_size)
+        self.linear = Linear(out_size, nobias, dtype, in_size, W)
         self.out_size = out_size
 
     def forward(self, xs):
